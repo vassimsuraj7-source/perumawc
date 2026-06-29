@@ -132,6 +132,11 @@ details summary{cursor:pointer;font-weight:700;color:var(--gold2)}
     <div id="predictionCards"></div>
     <button class="btn primary" id="saveAllPredictions" style="margin-top:4px">Save my predictions</button>
     <p class="note" id="saveMsg" style="text-align:center;margin-top:10px"></p>
+    <div class="card" id="submitStatusCard">
+      <h2>Submission status</h2>
+      <p class="sub" id="submitStatusSub">Select a match day to see who has submitted.</p>
+      <div id="submitStatus"></div>
+    </div>
   </section>
 
   <!-- LEADERBOARD -->
@@ -348,11 +353,61 @@ document.addEventListener('DOMContentLoaded', function(){
     // wire winner toggles
     box.querySelectorAll('.match').forEach(card => {
       card.querySelectorAll('.pick-winner').forEach(b => b.addEventListener('click', () => {
+        if(b.hasAttribute('disabled')) return;
         card.querySelectorAll('.pick-winner').forEach(x => x.classList.remove('sel'));
         b.classList.add('sel');
         card.querySelector('.pred-winner').value = b.getAttribute('data-team');
+        updateSaveState();
       }));
     });
+    // one submission per match day: lock if already submitted
+    if(hasSubmittedDay(playerId, date)){
+      box.querySelectorAll('input,.pick-winner').forEach(el => el.setAttribute('disabled','disabled'));
+      box.insertAdjacentHTML('afterbegin','<div class="empty" style="margin-bottom:12px">\u2713 You have already submitted for this day. Only one submission is allowed per match day.</div>');
+    }
+    // live validation -> enable Save only when every open match is fully filled
+    box.querySelectorAll('input').forEach(inp => inp.addEventListener('input', updateSaveState));
+  }
+
+  // a player has "submitted" a day if they have any prediction for a match on that date
+  const hasSubmittedDay = (playerId, date) => db.predictions.some(p => p.playerId===playerId && db.matches.some(m => m.id===p.matchId && m.date===date));
+
+  function updateSaveState(){
+    const btn = qs('saveAllPredictions');
+    if(!btn) return;
+    const playerId = qs('predPlayer').value, date = qs('predDate').value;
+    if(!playerId || !date){ btn.disabled = true; btn.textContent = 'Save my predictions'; return; }
+    if(hasSubmittedDay(playerId, date)){ btn.disabled = true; btn.textContent = 'Already submitted'; return; }
+    const cards = Array.from(document.querySelectorAll('#predictionCards .match'));
+    const editable = cards.filter(c => { const m = db.matches.find(x => x.id===c.getAttribute('data-match-id')); return !isLocked(m); });
+    if(!editable.length){ btn.disabled = true; btn.textContent = 'No open matches'; return; }
+    const allFilled = editable.every(c => c.querySelector('.pred-score1').value !== '' && c.querySelector('.pred-score2').value !== '' && c.querySelector('.pred-winner').value !== '');
+    btn.disabled = !allFilled;
+    btn.textContent = allFilled ? 'Save my predictions' : 'Fill all fields to save';
+  }
+
+  // bottom-of-page submitted / yet-to-submit lists for the selected day
+  function renderSubmitStatus(date){
+    const wrap = qs('submitStatus'), sub = qs('submitStatusSub');
+    if(!wrap) return;
+    if(!date){ sub.textContent = 'Select a match day to see who has submitted.'; wrap.innerHTML = ''; return; }
+    const dayMatches = db.matches.filter(m => m.date===date);
+    if(!dayMatches.length){ sub.textContent = 'No matches on this day.'; wrap.innerHTML = ''; return; }
+    const submitted = db.players.filter(pl => hasSubmittedDay(pl.id, date));
+    const pending = db.players.filter(pl => !hasSubmittedDay(pl.id, date));
+    sub.textContent = `${submitted.length} submitted · ${pending.length} yet to submit`;
+    wrap.innerHTML =
+      `<div class="pend-day">\u2713 Submitted (${submitted.length})</div>` +
+      `<div class="pending-wrap">${submitted.map(p=>`<span class="pend-chip done">\u2713 ${escapeHtml(p.name)}</span>`).join('') || '<span class="note">Nobody yet.</span>'}</div>` +
+      `<div class="pend-day">\u23f3 Yet to submit (${pending.length})</div>` +
+      `<div class="pending-wrap">${pending.map(p=>`<span class="pend-chip">\u23f3 ${escapeHtml(p.name)}</span>`).join('') || '<span class="note">Everyone is in!</span>'}</div>`;
+  }
+
+  function renderPredictTab(){
+    const date = qs('predDate').value;
+    renderPredictionCards();
+    renderSubmitStatus(date);
+    updateSaveState();
   }
 
   function renderAll(){
@@ -396,7 +451,7 @@ document.addEventListener('DOMContentLoaded', function(){
     qs('breakdown').querySelectorAll('.bd-head').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('open')));
 
     renderPending();
-    renderPredictionCards();
+    renderPredictTab();
   }
 
   // ---- pending predictions (open matches only) ----
@@ -445,8 +500,8 @@ document.addEventListener('DOMContentLoaded', function(){
   // ---- events ----
   qs('saveSupaBtn').addEventListener('click', () => { cfg.url=qs('supaUrlInput').value.trim(); cfg.key=qs('supaKeyInput').value.trim(); localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg)); loadData(); });
   qs('btnReload').addEventListener('click', loadData);
-  qs('predPlayer').addEventListener('change', renderPredictionCards);
-  qs('predDate').addEventListener('change', renderPredictionCards);
+  qs('predPlayer').addEventListener('change', renderPredictTab);
+  qs('predDate').addEventListener('change', renderPredictTab);
   qs('resultMatch').addEventListener('change', refreshResultWinnerSelect);
 
   qs('addMatch').addEventListener('click', async () => {
@@ -468,6 +523,7 @@ document.addEventListener('DOMContentLoaded', function(){
   qs('saveAllPredictions').addEventListener('click', async () => {
     const playerId=qs('predPlayer').value, date=qs('predDate').value;
     if(!playerId||!date) return alert('Select your name and a match day');
+    if(hasSubmittedDay(playerId, date)) return alert('You have already submitted for this day. Only one submission is allowed per match day.');
     const cards=Array.from(document.querySelectorAll('#predictionCards .match'));
     if(!cards.length) return alert('No matches for this day');
     const rows=[]; let skipped=0;
@@ -494,7 +550,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // refresh countdowns / pending every minute
   setInterval(() => {
-    if(qs('view-predict').classList.contains('active')) renderPredictionCards();
+    if(qs('view-predict').classList.contains('active')) renderPredictTab();
     if(qs('view-leaderboard').classList.contains('active')) renderPending();
   }, 60000);
 
