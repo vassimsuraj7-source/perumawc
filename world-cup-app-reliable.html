@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Family World Cup Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{--bg:#f7f6f2;--card:#ffffff;--text:#222;--muted:#6b7280;--line:#d1d5db;--brand:#0f766e;--brand2:#134e4a;--soft:#ecfeff;--danger:#b91c1c;--radius:14px}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .wrap{max-width:1200px;margin:0 auto;padding:16px}.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+    h1{margin:0 0 6px;font-size:clamp(28px,4vw,42px)} h2{margin:0 0 14px;font-size:20px} h3{margin:0 0 10px;font-size:16px}
+    p{margin:0 0 12px;color:var(--muted)} .tabs,.subtabs,.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    button,input,select{font:inherit} button{cursor:pointer;border:1px solid var(--line);background:#fff;padding:10px 14px;border-radius:999px;transition:0.2s}
+    button.primary{background:var(--brand);border-color:var(--brand);color:#fff} button.active{background:var(--brand2);border-color:var(--brand2);color:#fff}
+    button:hover{opacity:0.9}
+    input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;margin-top:16px}.stack{display:grid;gap:16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.row2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    label{display:grid;gap:6px;font-size:14px;color:#374151}.pill{display:inline-block;background:var(--soft);color:var(--brand2);padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700}
+    .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.kpi{padding:14px;border:1px solid var(--line);border-radius:12px;background:#fafafa}.kpi .n{font-size:24px;font-weight:700;color:var(--brand2)}
+    table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #e5e7eb;vertical-align:top} th{color:var(--muted);font-weight:600}
+    .table{overflow:auto}.hidden{display:none !important}.leader{display:grid;gap:10px}.leader-item{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fafafa}
+    .notice{padding:12px;border:1px dashed var(--line);border-radius:12px;background:#fafafa}.ok{color:#166534}.bad{color:var(--danger)}
+    @media (max-width:900px){.grid,.row,.row2,.row3,.kpis{grid-template-columns:1fr}} @media (max-width:640px){.wrap{padding:12px}button{min-height:44px;width:100%}.tabs button,.subtabs button,.actions button{width:auto;flex:1 1 calc(50% - 8px)} .table table{min-width:720px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Family World Cup Tracker</h1>
+        <span class="pill" id="apiStatus" style="background:#fef2f2;color:#991b1b">App Loading...</span>
+      </div>
+      <div class="actions">
+        <button id="btnReload">Refresh Data</button>
+      </div>
+    </div>
+
+    <!-- MAIN TABS -->
+    <div class="tabs">
+      <button class="tab-btn active" data-target="view-admin">Admin</button>
+      <button class="tab-btn" data-target="view-player">Player</button>
+      <button class="tab-btn" data-target="view-setup">Database Setup</button>
+    </div>
+
+    <!-- ADMIN VIEW -->
+    <section id="view-admin" class="grid view-section">
+      <div class="stack">
+        <div class="card">
+          <h2>Admin</h2>
+          <div class="subtabs">
+            <button class="subtab-btn-admin active" data-target="admin-matches">Matches</button>
+            <button class="subtab-btn-admin" data-target="admin-results">Results</button>
+          </div>
+        </div>
+
+        <div class="card panel-admin" id="admin-matches">
+          <h2>Load matches</h2>
+          <div class="row">
+            <label>Date<input type="date" id="matchDate"></label>
+            <label>Team 1<input id="team1" placeholder="Brazil"></label>
+            <label>Team 2<input id="team2" placeholder="France"></label>
+            <label>Deadline<input type="time" id="deadline" value="20:00"></label>
+          </div>
+          <div class="actions"><button class="primary" id="addMatch">Add match</button></div>
+          <div class="table"><table><thead><tr><th>Date</th><th>Match</th><th>Deadline</th><th>Status</th></tr></thead><tbody id="matchesBody"></tbody></table></div>
+        </div>
+
+        <div class="card panel-admin hidden" id="admin-results">
+          <h2>Update scores</h2>
+          <div class="row">
+            <label>Match<select id="resultMatch"></select></label>
+            <label>90-min score 1<input id="actual1" type="number" min="0" placeholder="1"></label>
+            <label>90-min score 2<input id="actual2" type="number" min="0" placeholder="1"></label>
+            <label>Winner<select id="actualWinner"></select></label>
+          </div>
+          <div class="actions"><button class="primary" id="saveResult">Save result</button></div>
+          <div class="table"><table><thead><tr><th>Match</th><th>90 min</th><th>Winner</th></tr></thead><tbody id="resultsBody"></tbody></table></div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card">
+          <h2>Status</h2>
+          <div class="kpis">
+            <div class="kpi"><div>Players</div><div class="n" id="kPlayers">9</div></div>
+            <div class="kpi"><div>Matches</div><div class="n" id="kMatchesToday">0</div></div>
+            <div class="kpi"><div>Predictions</div><div class="n" id="kPredictions">0</div></div>
+          </div>
+        </div>
+        <div class="card"><h2>Fixtures</h2><div id="fixtures"></div></div>
+      </div>
+    </section>
+
+    <!-- PLAYER VIEW -->
+    <section id="view-player" class="grid view-section hidden">
+      <div class="stack">
+        <div class="card">
+          <h2>Player</h2>
+          <div class="subtabs">
+            <button class="subtab-btn-player active" data-target="player-predictions">Predictions</button>
+            <button class="subtab-btn-player" data-target="player-scoreboard">Scoreboard</button>
+          </div>
+        </div>
+        <div class="card panel-player" id="player-predictions">
+          <h2>Enter prediction</h2>
+          <div class="row">
+            <label>I am...<select id="predPlayer"></select></label>
+            <label>Match<select id="predMatch"></select></label>
+            <label>Score 1<input id="pred1" type="number" placeholder="1"></label>
+            <label>Score 2<input id="pred2" type="number" placeholder="1"></label>
+          </div>
+          <div class="row2" style="margin-top:12px">
+            <label>Winner<select id="predWinner"></select></label>
+            <label>&nbsp;<button class="primary" id="savePrediction">Save prediction</button></label>
+          </div>
+          <div class="table"><table><thead><tr><th>Player</th><th>Match</th><th>Prediction</th><th>Points</th></tr></thead><tbody id="predictionsBody"></tbody></table></div>
+        </div>
+        <div class="card panel-player hidden" id="player-scoreboard">
+          <h2>Scoreboard</h2>
+          <div class="table"><table><thead><tr><th>Rank</th><th>Player</th><th>Total</th><th>Breakup</th></tr></thead><tbody id="scoreboardBody"></tbody></table></div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card"><h2>Leaderboard</h2><div class="leader" id="leaderboard"></div></div>
+        <div class="card"><h2>Rules</h2><p>Winner + exact score = 5. Winner + 1 exact = 3. Winner only = 1. Draw in 90 + wrong winner = 3. Draw + correct winner = 5.</p></div>
+      </div>
+    </section>
+
+    <!-- SETUP VIEW -->
+    <section id="view-setup" class="view-section hidden">
+      <div class="card">
+        <h2>Database Connection</h2>
+        <p>If you don't enter keys, the app works in <b>Offline Mode</b> (data disappears when you refresh).</p>
+        <div class="stack" style="margin-top:16px">
+          <label>Supabase URL<input id="supaUrlInput" placeholder="https://xyz.supabase.co"></label>
+          <label>Anon Key<input id="supaKeyInput" placeholder="eyJhbGci..."></label>
+          <div><button class="primary" id="saveSupaBtn">Connect Database</button></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Ensure code runs only after DOM is completely ready
+    document.addEventListener("DOMContentLoaded", function() {
+      try {
+        console.log("App starting initialization...");
+
+        const qs = id => document.getElementById(id);
+        const setStatus = (msg, ok) => { 
+          const el = qs('apiStatus'); 
+          if(el) {
+            el.textContent = msg; 
+            el.style.background = ok ? '#ecfdf5' : '#fef2f2'; 
+            el.style.color = ok ? '#166534' : '#991b1b'; 
+          }
+        };
+
+        // UI Tabs Wiring (Extremely robust)
+        const wireTabs = (btnClass, panelClass) => {
+          const btns = document.querySelectorAll('.' + btnClass);
+          btns.forEach(btn => {
+            btn.addEventListener('click', () => {
+              btns.forEach(b => b.classList.remove('active'));
+              btn.classList.add('active');
+              document.querySelectorAll('.' + panelClass).forEach(p => p.classList.add('hidden'));
+              const target = document.getElementById(btn.getAttribute('data-target'));
+              if(target) target.classList.remove('hidden');
+            });
+          });
+        };
+        wireTabs('tab-btn', 'view-section');
+        wireTabs('subtab-btn-admin', 'panel-admin');
+        wireTabs('subtab-btn-player', 'panel-player');
+
+        console.log("Tabs wired successfully.");
+
+        // Core Data State
+        let db = {
+          players: [
+            {id:'Eldho', name:'Eldho'}, {id:'Irene', name:'Irene'}, {id:'Lorraine', name:'Lorraine'},
+            {id:'Mini', name:'Mini'}, {id:'Saju', name:'Saju'}, {id:'Sameera', name:'Sameera'},
+            {id:'Suraj', name:'Suraj'}, {id:'Vaheeda', name:'Vaheeda'}, {id:'Vassim', name:'Vassim'}
+          ],
+          matches: [], predictions: [], results: []
+        };
+
+        let supabaseClient = null;
+        let isOffline = true;
+        const STORAGE_KEY = 'wc-tracker-creds';
+        const cfg = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"url":"","key":""}');
+
+        if (qs('supaUrlInput')) qs('supaUrlInput').value = cfg.url || '';
+        if (qs('supaKeyInput')) qs('supaKeyInput').value = cfg.key || '';
+
+        // Helper functions
+        const uid = p => p + '-' + Math.random().toString(36).substring(2,8);
+        const escapeHtml = s => String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+        const isBlank = v => v === '' || v === null || v === undefined;
+
+        // Logic
+        function scorePrediction(pred, result){
+          if(!pred || !result) return 0;
+          if(isBlank(pred.score1) || isBlank(pred.score2) || !pred.winner) return 0;
+          const ps1=Number(pred.score1), ps2=Number(pred.score2), as1=Number(result.score1), as2=Number(result.score2);
+          const exact = (ps1===as1 && ps2===as2);
+          const oneTeam = (ps1===as1 || ps2===as2);
+          const correctWinner = (pred.winner===result.winner);
+          const draw90 = (as1===as2);
+          if(draw90 && correctWinner) return 5;
+          if(exact && correctWinner) return 5;
+          if(draw90 && !correctWinner) return 3;
+          if(correctWinner && oneTeam) return 3;
+          if(correctWinner) return 1;
+          return 0;
+        }
+
+        function refreshWinnerSelects(){
+          const pMatch = qs('predMatch').value;
+          const m1 = db.matches.find(m => m.id === pMatch);
+          const opts1 = m1 ? `<option value="${m1.team1}">${m1.team1}</option><option value="${m1.team2}">${m1.team2}</option>` : '';
+          qs('predWinner').innerHTML = '<option value="">Select winner</option>' + opts1;
+
+          const rMatch = qs('resultMatch').value;
+          const m2 = db.matches.find(m => m.id === rMatch);
+          const opts2 = m2 ? `<option value="${m2.team1}">${m2.team1}</option><option value="${m2.team2}">${m2.team2}</option>` : '';
+          qs('actualWinner').innerHTML = '<option value="">Select winner</option>' + opts2;
+        }
+
+        if(qs('predMatch')) qs('predMatch').addEventListener('change', refreshWinnerSelects);
+        if(qs('resultMatch')) qs('resultMatch').addEventListener('change', refreshWinnerSelects);
+
+        // Rendering Engine
+        function renderAll() {
+          try {
+            console.log("Rendering UI...");
+            // Selects
+            const matchOpts = '<option value="">Select match</option>' + db.matches.map(m=>`<option value="${m.id}">${escapeHtml(m.date)}: ${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</option>`).join('');
+            if(qs('predMatch')) qs('predMatch').innerHTML = matchOpts;
+            if(qs('resultMatch')) qs('resultMatch').innerHTML = matchOpts;
+            if(qs('predPlayer')) qs('predPlayer').innerHTML = '<option value="">Select your name</option>' + db.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+            refreshWinnerSelects();
+
+            // Tables
+            if(qs('matchesBody')) qs('matchesBody').innerHTML = db.matches.map(m=>`<tr><td>${escapeHtml(m.date)}</td><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${m.deadline||'-'}</td><td>Active</td></tr>`).join('');
+            if(qs('resultsBody')) qs('resultsBody').innerHTML = db.results.map(r=>{ const m=db.matches.find(x=>x.id===r.matchId); return m ? `<tr><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${r.score1}-${r.score2}</td><td>${escapeHtml(r.winner)}</td></tr>` : ''}).join('');
+
+            const withPts = db.predictions.map(p => ({...p, points: scorePrediction(p, db.results.find(r=>r.matchId===p.matchId))}));
+            if(qs('predictionsBody')) qs('predictionsBody').innerHTML = withPts.map(p=>{ const m=db.matches.find(x=>x.id===p.matchId); return m ? `<tr><td>${p.playerId}</td><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${p.score1}-${p.score2} (${escapeHtml(p.winner)})</td><td>${p.points}</td></tr>` : ''}).join('');
+
+            // Leaderboard
+            const map = {};
+            db.players.forEach(p => map[p.id] = {name: p.name, pts:0, detail:[]});
+            withPts.forEach(p => { if(map[p.playerId]) { map[p.playerId].pts += p.points; map[p.playerId].detail.push(`${p.points}pts`); } });
+            const ranks = Object.values(map).sort((a,b)=>b.pts-a.pts || a.name.localeCompare(b.name));
+
+            if(qs('leaderboard')) qs('leaderboard').innerHTML = ranks.map((r,i)=>`<div class="leader-item"><div><strong>#${i+1} ${r.name}</strong></div><span class="pill">${r.pts} pts</span></div>`).join('');
+            if(qs('scoreboardBody')) qs('scoreboardBody').innerHTML = ranks.map((r,i)=>`<tr><td>#${i+1}</td><td>${r.name}</td><td><strong>${r.pts}</strong></td><td>${r.detail.join(', ') || '-'}</td></tr>`).join('');
+
+            // KPIs
+            if(qs('kMatchesToday')) qs('kMatchesToday').textContent = db.matches.length;
+            if(qs('kPredictions')) qs('kPredictions').textContent = db.predictions.length;
+
+            console.log("Render complete.");
+          } catch(err) {
+            console.error("Render Error:", err);
+          }
+        }
+
+        // Database logic
+        async function loadData() {
+          if (!cfg.url || !cfg.key) {
+            isOffline = true;
+            setStatus('Offline Mode (No Database)', false);
+            renderAll();
+            return;
+          }
+          try {
+            if(!window.supabase) throw new Error("Supabase library not loaded. Check internet.");
+            supabaseClient = window.supabase.createClient(cfg.url, cfg.key);
+            setStatus('Loading...', true);
+            const [mRes, pRes, rRes] = await Promise.all([
+              supabaseClient.from('matches').select('*'),
+              supabaseClient.from('predictions').select('*'),
+              supabaseClient.from('results').select('*')
+            ]);
+            if(mRes.error) throw mRes.error;
+            if(pRes.error) throw pRes.error;
+            if(rRes.error) throw rRes.error;
+
+            db.matches = mRes.data || [];
+            db.predictions = pRes.data || [];
+            db.results = rRes.data || [];
+            isOffline = false;
+            setStatus('Database connected', true);
+          } catch(e) {
+            console.error(e);
+            setStatus('DB Error: ' + e.message, false);
+            isOffline = true;
+          }
+          renderAll();
+        }
+
+        // Action Buttons
+        if(qs('saveSupaBtn')) qs('saveSupaBtn').addEventListener('click', () => {
+          cfg.url = qs('supaUrlInput').value.trim();
+          cfg.key = qs('supaKeyInput').value.trim();
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+          loadData();
+        });
+
+        if(qs('btnReload')) qs('btnReload').addEventListener('click', loadData);
+
+        if(qs('addMatch')) qs('addMatch').addEventListener('click', async () => {
+          const date = qs('matchDate').value, t1 = qs('team1').value, t2 = qs('team2').value, dl = qs('deadline').value;
+          if(!date || !t1 || !t2) return alert('Fill all match fields');
+          const obj = { id: uid('match'), date, team1:t1, team2:t2, deadline:dl };
+          if(isOffline) { db.matches.push(obj); renderAll(); return; }
+          setStatus('Saving...', true);
+          const {error} = await supabaseClient.from('matches').insert([obj]);
+          if(error) alert(error.message); else await loadData();
+        });
+
+        if(qs('saveResult')) qs('saveResult').addEventListener('click', async () => {
+          const mId = qs('resultMatch').value, s1 = qs('actual1').value, s2 = qs('actual2').value, w = qs('actualWinner').value;
+          if(!mId || isBlank(s1) || isBlank(s2) || !w) return alert('Fill all result fields');
+          const obj = { matchId: mId, score1: s1, score2: s2, winner: w };
+          if(isOffline) { 
+            const idx = db.results.findIndex(x=>x.matchId===mId);
+            if(idx>-1) db.results[idx] = obj; else db.results.push(obj);
+            renderAll(); return; 
+          }
+          setStatus('Saving...', true);
+          const {error} = await supabaseClient.from('results').upsert([obj]);
+          if(error) alert(error.message); else await loadData();
+        });
+
+        if(qs('savePrediction')) qs('savePrediction').addEventListener('click', async () => {
+          const pId = qs('predPlayer').value, mId = qs('predMatch').value, s1 = qs('pred1').value, s2 = qs('pred2').value, w = qs('predWinner').value;
+          if(!pId || !mId || isBlank(s1) || isBlank(s2) || !w) return alert('Fill all prediction fields');
+          const existing = db.predictions.find(x => x.playerId === pId && x.matchId === mId);
+          const obj = { id: existing ? existing.id : uid('pred'), playerId: pId, matchId: mId, score1: s1, score2: s2, winner: w };
+          if(isOffline) {
+            if(existing) Object.assign(existing, obj); else db.predictions.push(obj);
+            renderAll(); return;
+          }
+          setStatus('Saving...', true);
+          const {error} = await supabaseClient.from('predictions').upsert([obj]);
+          if(error) alert(error.message); else await loadData();
+        });
+
+        // Initialize!
+        loadData();
+
+      } catch(globalError) {
+        console.error("CRITICAL APP ERROR:", globalError);
+        alert("The app failed to load. Please check the console (F12). Error: " + globalError.message);
+      }
+    });
+  </script>
+</body>
+</html>
