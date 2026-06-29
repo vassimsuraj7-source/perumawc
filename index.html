@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Family World Cup Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{--bg:#f7f6f2;--card:#ffffff;--text:#222;--muted:#6b7280;--line:#d1d5db;--brand:#0f766e;--brand2:#134e4a;--soft:#ecfeff;--danger:#b91c1c;--radius:14px}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .wrap{max-width:1200px;margin:0 auto;padding:16px}.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+    h1{margin:0 0 6px;font-size:clamp(28px,4vw,42px)} h2{margin:0 0 14px;font-size:20px} h3{margin:0 0 10px;font-size:16px}
+    p{margin:0 0 12px;color:var(--muted)} .tabs,.subtabs,.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    button,input,select{font:inherit} button{cursor:pointer;border:1px solid var(--line);background:#fff;padding:10px 14px;border-radius:999px}
+    button.primary{background:var(--brand);border-color:var(--brand);color:#fff} button.active{background:var(--brand2);border-color:var(--brand2);color:#fff}
+    input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;margin-top:16px}.stack{display:grid;gap:16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.row2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    label{display:grid;gap:6px;font-size:14px;color:#374151}.pill{display:inline-block;background:var(--soft);color:var(--brand2);padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700}
+    .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.kpi{padding:14px;border:1px solid var(--line);border-radius:12px;background:#fafafa}.kpi .n{font-size:24px;font-weight:700;color:var(--brand2)}
+    table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #e5e7eb;vertical-align:top} th{color:var(--muted);font-weight:600}
+    .table{overflow:auto}.hidden{display:none}.leader{display:grid;gap:10px}.leader-item{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fafafa}
+    .notice{padding:12px;border:1px dashed var(--line);border-radius:12px;background:#fafafa}.ok{color:#166534}.bad{color:var(--danger)}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#374151;background:#f3f4f6;padding:2px 6px;border-radius:6px;word-break:break-all;}
+    @media (max-width:900px){.grid,.row,.row2,.row3,.kpis{grid-template-columns:1fr}} @media (max-width:640px){.wrap{padding:12px}button{min-height:44px;width:100%}.tabs button,.subtabs button,.actions button{width:auto;flex:1 1 calc(50% - 8px)} .table table{min-width:720px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Family World Cup Tracker</h1>
+        <p>Supabase Database Backend + GitHub Pages</p>
+        <span class="pill" id="apiStatus">Database not connected</span>
+      </div>
+      <div class="actions">
+        <button id="btnReload">Refresh Data</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="active" data-main="admin">Admin</button>
+      <button data-main="player">Player</button>
+      <button data-main="setup">Database Setup</button>
+    </div>
+
+    <section id="view-admin" class="grid">
+      <div class="stack">
+        <div class="card">
+          <h2>Admin</h2>
+          <div class="subtabs">
+            <button class="active" data-admin="matches">Matches</button>
+            <button data-admin="results">Results</button>
+          </div>
+        </div>
+
+        <div class="card admin-panel" id="admin-matches">
+          <h2>Load matches</h2>
+          <div class="row">
+            <label>Date<input type="date" id="matchDate"></label>
+            <label>Team 1<input id="team1" placeholder="Brazil"></label>
+            <label>Team 2<input id="team2" placeholder="France"></label>
+            <label>Deadline IST<input type="time" id="deadline" value="20:00"></label>
+          </div>
+          <div class="actions"><button class="primary" id="addMatch">Add match</button></div>
+          <div class="table"><table><thead><tr><th>Date</th><th>Match</th><th>Deadline</th><th>Status</th></tr></thead><tbody id="matchesBody"></tbody></table></div>
+        </div>
+
+        <div class="card admin-panel hidden" id="admin-results">
+          <h2>Update scores</h2>
+          <div class="row">
+            <label>Match<select id="resultMatch"></select></label>
+            <label>90-min score team 1<input id="actual1" type="number" min="0" placeholder="1"></label>
+            <label>90-min score team 2<input id="actual2" type="number" min="0" placeholder="1"></label>
+            <label>Winner<select id="actualWinner"></select></label>
+          </div>
+          <div class="actions"><button class="primary" id="saveResult">Save result</button></div>
+          <div class="table"><table><thead><tr><th>Match</th><th>90 min</th><th>Winner</th></tr></thead><tbody id="resultsBody"></tbody></table></div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card">
+          <h2>Status</h2>
+          <div class="kpis">
+            <div class="kpi"><div>Players</div><div class="n" id="kPlayers">9</div></div>
+            <div class="kpi"><div>Matches today</div><div class="n" id="kMatchesToday">0</div></div>
+            <div class="kpi"><div>Predictions</div><div class="n" id="kPredictions">0</div></div>
+          </div>
+          <div class="kpis" style="margin-top:12px">
+            <div class="kpi"><div>Updated</div><div class="n ok" id="kUpdated">0</div></div>
+            <div class="kpi"><div>Pending</div><div class="n bad" id="kPending">0</div></div>
+            <div class="kpi"><div>Coverage</div><div class="n" id="kCoverage">0%</div></div>
+          </div>
+        </div>
+        <div class="card"><h2>Today's fixtures</h2><div id="fixtures"></div></div>
+      </div>
+    </section>
+
+    <section id="view-player" class="grid hidden">
+      <div class="stack">
+        <div class="card">
+          <h2>Player</h2>
+          <div class="subtabs">
+            <button class="active" data-player="predictions">Predictions</button>
+            <button data-player="scoreboard">Scoreboard</button>
+          </div>
+        </div>
+        <div class="card player-panel" id="player-predictions">
+          <h2>Enter prediction</h2>
+          <div class="row">
+            <label>I am...<select id="predPlayer"></select></label>
+            <label>Match<select id="predMatch"></select></label>
+            <label>Predicted score team 1<input id="pred1" type="number" placeholder="1"></label>
+            <label>Predicted score team 2<input id="pred2" type="number" placeholder="1"></label>
+          </div>
+          <div class="row2" style="margin-top:12px">
+            <label>Predicted winner<select id="predWinner"></select></label>
+            <label>&nbsp;<button class="primary" id="savePrediction">Save prediction</button></label>
+          </div>
+          <div class="table"><table><thead><tr><th>Player</th><th>Match</th><th>Prediction</th><th>Points</th></tr></thead><tbody id="predictionsBody"></tbody></table></div>
+        </div>
+        <div class="card player-panel hidden" id="player-scoreboard">
+          <h2>Overall score and breakup</h2>
+          <div class="table"><table><thead><tr><th>Rank</th><th>Player</th><th>Total</th><th>Breakup</th></tr></thead><tbody id="scoreboardBody"></tbody></table></div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card"><h2>Leaderboard</h2><div class="leader" id="leaderboard"></div></div>
+        <div class="card"><h2>Rules</h2><p>Winner + exact score = 5. Winner + one team exact = 3. Winner only = 1. Draw in 90 mins + wrong winner = 3. Draw in 90 mins + correct winner = 5. Blank = 0.</p></div>
+      </div>
+    </section>
+
+    <section id="view-setup" class="hidden">
+      <div class="card">
+        <h2>Supabase Connection</h2>
+        <p>Enter your Supabase URL and Anon Key here. This is saved securely in your browser so the app knows where to read and write data.</p>
+        <div class="stack" style="margin-top:16px">
+          <label>Project URL<input id="supaUrlInput" placeholder="https://xyz.supabase.co"></label>
+          <label>Anon / Public Key<input id="supaKeyInput" placeholder="eyJhbGciOiJIUzI1..."></label>
+          <div><button class="primary" id="saveSupaBtn">Connect & Save</button></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'family-wc-supabase-config';
+    const cfg = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"url":"","key":""}');
+
+    // Hardcoded player list (9 players)
+    let db = {
+      players: [
+        {id:'Eldho', name:'Eldho'}, {id:'Irene', name:'Irene'}, {id:'Lorraine', name:'Lorraine'},
+        {id:'Mini', name:'Mini'}, {id:'Saju', name:'Saju'}, {id:'Sameera', name:'Sameera'},
+        {id:'Suraj', name:'Suraj'}, {id:'Vaheeda', name:'Vaheeda'}, {id:'Vassim', name:'Vassim'}
+      ],
+      matches: [], predictions: [], results: []
+    };
+
+    let supabase = null;
+
+    const qs = id => document.getElementById(id);
+    const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    const isBlankish = v => v === '' || v === null || v === undefined || String(v).trim() === '' || String(v).trim() === '-';
+    const parseNum = v => isBlankish(v) ? null : Number(v);
+    const uid = p => `${p}-${Math.random().toString(36).slice(2,8)}`;
+
+    function setStatus(text, ok=true){ const el=qs('apiStatus'); el.textContent=text; el.style.background=ok?'#ecfdf5':'#fef2f2'; el.style.color=ok?'#166534':'#991b1b'; }
+
+    async function initSupabase() {
+      if (!cfg.url || !cfg.key) return false;
+      try {
+        supabase = window.supabase.createClient(cfg.url, cfg.key);
+        return true;
+      } catch(e) {
+        setStatus('Invalid credentials', false);
+        return false;
+      }
+    }
+
+    async function loadData(){
+      if (!await initSupabase()) return;
+      try {
+        setStatus('Loading...', true);
+        const [mRes, pRes, rRes] = await Promise.all([
+          supabase.from('matches').select('*'),
+          supabase.from('predictions').select('*'),
+          supabase.from('results').select('*')
+        ]);
+        if(mRes.error) throw mRes.error;
+        if(pRes.error) throw pRes.error;
+        if(rRes.error) throw rRes.error;
+
+        db.matches = mRes.data || [];
+        db.predictions = pRes.data || [];
+        db.results = rRes.data || [];
+
+        setStatus('Database connected', true);
+        renderAll();
+      } catch(err) {
+        setStatus('Error: ' + err.message, false);
+      }
+    }
+
+    // Logic
+    function latestDate(){ return [...new Set(db.matches.map(m => m.date).filter(Boolean))].sort().slice(-1)[0] || ''; }
+    function todaysMatches(){ const d = latestDate(); return db.matches.filter(m => m.date === d); }
+    function teamNames(matchId){ const m=db.matches.find(x=>x.id===matchId); return m?[m.team1,m.team2]:['','']; }
+    function resultFor(matchId){ return db.results.find(r => r.matchId === matchId); }
+
+    function scorePrediction(pred, result){
+      if(!pred || !result) return 0;
+      if([pred.score1,pred.score2,pred.winner].some(isBlankish)) return 0;
+      const ps1=parseNum(pred.score1), ps2=parseNum(pred.score2), as1=parseNum(result.score1), as2=parseNum(result.score2);
+      if([ps1,ps2,as1,as2].some(v => v === null || Number.isNaN(v))) return 0;
+      const exact = ps1===as1 && ps2===as2;
+      const oneTeam = ps1===as1 || ps2===as2;
+      const correctWinner = pred.winner===result.winner;
+      const draw90 = as1===as2;
+      if(draw90 && correctWinner) return 5;
+      if(exact && correctWinner) return 5;
+      if(draw90 && !correctWinner) return 3;
+      if(correctWinner && oneTeam) return 3;
+      if(correctWinner) return 1;
+      return 0;
+    }
+
+    function predictionsWithPoints(){ return db.predictions.map(p => ({...p, points: scorePrediction(p, resultFor(p.matchId))})); }
+    function totals(){
+      const out = Object.fromEntries(db.players.map(p => [p.id,{name:p.name, points:0, breakup:[]}]))
+      predictionsWithPoints().forEach(p => {
+        if(!out[p.playerId]) return;
+        const m = db.matches.find(x=>x.id===p.matchId);
+        out[p.playerId].points += p.points;
+        out[p.playerId].breakup.push(`${m?.team1||''} vs ${m?.team2||''}: ${p.points}`);
+      });
+      return Object.values(out).sort((a,b)=>b.points-a.points || a.name.localeCompare(b.name));
+    }
+    function statusCounts(){
+      const tMatches = todaysMatches();
+      const playerIds = new Set(db.players.map(p=>p.id));
+      const updated = new Set(db.predictions.filter(p => tMatches.some(m => m.id === p.matchId)).map(p => p.playerId));
+      const updatedCount = updated.size;
+      const pending = Math.max(playerIds.size - updatedCount, 0);
+      const coverage = playerIds.size ? Math.round(updatedCount / playerIds.size * 100) : 0;
+      return {updatedCount, pending, coverage};
+    }
+
+    // UI Render
+    function renderSelects(){
+      qs('supaUrlInput').value = cfg.url || '';
+      qs('supaKeyInput').value = cfg.key || '';
+      qs('predPlayer').innerHTML = '<option value="">Select your name</option>' + db.players.map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join('');
+      const matchOpts = '<option value="">Select match</option>' + db.matches.map(m=>`<option value="${escapeHtml(m.id)}">${escapeHtml(m.date)} — ${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</option>`).join('');
+      qs('predMatch').innerHTML = matchOpts;
+      qs('resultMatch').innerHTML = matchOpts;
+      refreshWinnerSelects();
+    }
+    function refreshWinnerSelects(){
+      const [a,b] = teamNames(qs('predMatch').value);
+      qs('predWinner').innerHTML = '<option value="">Select winner</option>' + [a,b].filter(Boolean).map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+      const [c,d] = teamNames(qs('resultMatch').value);
+      qs('actualWinner').innerHTML = '<option value="">Select winner</option>' + [c,d].filter(Boolean).map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+    }
+
+    function renderAdmin(){
+      qs('matchesBody').innerHTML = db.matches.length ? db.matches.map(m=>`<tr><td>${escapeHtml(m.date)}</td><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${escapeHtml(m.deadline||'20:00')} IST</td><td>${resultFor(m.id)?'Updated':'Pending'}</td></tr>`).join('') : '<tr><td colspan="4">No matches yet.</td></tr>';
+      qs('resultsBody').innerHTML = db.matches.length ? db.matches.map(m=>{ const r=resultFor(m.id); return `<tr><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${r?`${escapeHtml(r.score1)}-${escapeHtml(r.score2)}`:'Pending'}</td><td>${r?escapeHtml(r.winner):'Pending'}</td></tr>` }).join('') : '<tr><td colspan="3">No results yet.</td></tr>';
+
+      const tm = todaysMatches();
+      qs('fixtures').innerHTML = tm.length ? tm.map(m=>`<div class="notice" style="margin-bottom:10px"><strong>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</strong><br><span>${escapeHtml(m.date)} · Enter predictions by ${escapeHtml(m.deadline||'20:00')} IST</span></div>`).join('') : '<p>No matches loaded.</p>';
+
+      const s = statusCounts();
+      qs('kPlayers').textContent = db.players.length;
+      qs('kMatchesToday').textContent = tm.length;
+      qs('kPredictions').textContent = db.predictions.length;
+      qs('kUpdated').textContent = s.updatedCount;
+      qs('kPending').textContent = s.pending;
+      qs('kCoverage').textContent = s.coverage + '%';
+    }
+
+    function renderPlayer(){
+      const withPts = predictionsWithPoints();
+      qs('predictionsBody').innerHTML = withPts.length ? withPts.map(p=>{ const m=db.matches.find(x=>x.id===p.matchId); const player=db.players.find(x=>x.id===p.playerId); return `<tr><td>${escapeHtml(player?.name||'')}</td><td>${escapeHtml(m?.team1||'')} vs ${escapeHtml(m?.team2||'')}</td><td>${escapeHtml(p.score1)}-${escapeHtml(p.score2)}<br><span>${escapeHtml(p.winner)}</span></td><td>${p.points}</td></tr>` }).join('') : '<tr><td colspan="4">No predictions yet.</td></tr>';
+
+      const totalRows = totals();
+      qs('leaderboard').innerHTML = totalRows.length ? totalRows.map((r,i)=>`<div class="leader-item"><div><strong>#${i+1} ${escapeHtml(r.name)}</strong><div style="color:var(--muted);font-size:12px">Overall points</div></div><span class="pill">${r.points}</span></div>`).join('') : '<p>No leaderboard yet.</p>';
+      qs('scoreboardBody').innerHTML = totalRows.length ? totalRows.map((r,i)=>`<tr><td>#${i+1}</td><td>${escapeHtml(r.name)}</td><td><strong>${r.points}</strong></td><td>${escapeHtml(r.breakup.join(' · ') || 'No scored matches yet')}</td></tr>`).join('') : '<tr><td colspan="4">No scoreboard yet.</td></tr>';
+    }
+
+    function renderAll(){ renderSelects(); renderAdmin(); renderPlayer(); }
+
+    // Handlers
+    qs('saveSupaBtn').onclick = () => {
+      cfg.url = qs('supaUrlInput').value.trim();
+      cfg.key = qs('supaKeyInput').value.trim();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+      loadData();
+    };
+
+    qs('btnReload').onclick = loadData;
+
+    qs('addMatch').onclick = async () => {
+      if(!supabase) return alert('Connect DB first');
+      const date=qs('matchDate').value, team1=qs('team1').value.trim(), team2=qs('team2').value.trim(), deadline=qs('deadline').value || '20:00';
+      if(!date || !team1 || !team2) return alert('Complete match fields');
+      setStatus('Saving...', true);
+      const {error} = await supabase.from('matches').insert([{ id: uid('match'), date, team1, team2, deadline }]);
+      if(error) alert(error.message);
+      else { qs('team1').value=''; qs('team2').value=''; await loadData(); }
+    };
+
+    qs('saveResult').onclick = async () => {
+      if(!supabase) return alert('Connect DB first');
+      const matchId=qs('resultMatch').value, score1=qs('actual1').value, score2=qs('actual2').value, winner=qs('actualWinner').value;
+      if(!matchId || isBlankish(score1) || isBlankish(score2) || !winner) return alert('Complete fields');
+      setStatus('Saving...', true);
+      const {error} = await supabase.from('results').upsert([{ matchId, score1, score2, winner }]);
+      if(error) alert(error.message);
+      else { qs('actual1').value=''; qs('actual2').value=''; await loadData(); }
+    };
+
+    qs('savePrediction').onclick = async () => {
+      if(!supabase) return alert('Connect DB first');
+      const playerId=qs('predPlayer').value, matchId=qs('predMatch').value, score1=qs('pred1').value.trim(), score2=qs('pred2').value.trim(), winner=qs('predWinner').value;
+      if(!playerId || !matchId) return alert('Select player and match');
+
+      // Find existing prediction to update
+      const existing = db.predictions.find(x => x.playerId === playerId && x.matchId === matchId);
+      const predId = existing ? existing.id : uid('pred');
+
+      setStatus('Saving...', true);
+      const {error} = await supabase.from('predictions').upsert([{ id: predId, playerId, matchId, score1, score2, winner }]);
+      if(error) alert(error.message);
+      else { qs('pred1').value=''; qs('pred2').value=''; await loadData(); }
+    };
+
+    qs('predMatch').onchange = refreshWinnerSelects; qs('resultMatch').onchange = refreshWinnerSelects;
+
+    document.querySelectorAll('[data-main]').forEach(btn => btn.onclick = () => {
+      document.querySelectorAll('[data-main]').forEach(x=>x.classList.remove('active')); btn.classList.add('active');
+      ['admin','player','setup'].forEach(v => qs('view-'+v).classList.add('hidden')); qs('view-'+btn.dataset.main).classList.remove('hidden');
+    });
+    document.querySelectorAll('[data-admin]').forEach(btn => btn.onclick = () => {
+      document.querySelectorAll('[data-admin]').forEach(x=>x.classList.remove('active')); btn.classList.add('active');
+      ['matches','results'].forEach(v => qs('admin-'+v).classList.add('hidden')); qs('admin-'+btn.dataset.admin).classList.remove('hidden');
+    });
+    document.querySelectorAll('[data-player]').forEach(btn => btn.onclick = () => {
+      document.querySelectorAll('[data-player]').forEach(x=>x.classList.remove('active')); btn.classList.add('active');
+      ['predictions','scoreboard'].forEach(v => qs('player-'+v).classList.add('hidden')); qs('player-'+btn.dataset.player).classList.remove('hidden');
+    });
+
+    renderAll();
+    loadData();
+  </script>
+</body>
+</html>
