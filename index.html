@@ -1,273 +1,367 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Family World Cup Tracker</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    :root{--bg:#f7f6f2;--card:#ffffff;--text:#222;--muted:#6b7280;--line:#d1d5db;--brand:#0f766e;--brand2:#134e4a;--soft:#ecfeff;--danger:#b91c1c;--radius:14px}
-    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:var(--text)}
-    .wrap{max-width:1100px;margin:0 auto;padding:14px}.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
-    h1{margin:0 0 6px;font-size:clamp(26px,4vw,40px)} h2{margin:0 0 14px;font-size:20px}
-    p{margin:0 0 12px;color:var(--muted)} .tabs,.subtabs,.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-    button,input,select{font:inherit} button{cursor:pointer;border:1px solid var(--line);background:#fff;padding:10px 14px;border-radius:999px;transition:.2s}
-    button.primary{background:var(--brand);border-color:var(--brand);color:#fff} button.active{background:var(--brand2);border-color:var(--brand2);color:#fff}
-    input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
-    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px;margin-top:16px}.stack{display:grid;gap:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-    .row,.row2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px} .row4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-    label{display:grid;gap:6px;font-size:14px;color:#374151}.pill{display:inline-block;background:var(--soft);color:var(--brand2);padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700}
-    .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.kpi{padding:14px;border:1px solid var(--line);border-radius:12px;background:#fafafa}.kpi .n{font-size:24px;font-weight:700;color:var(--brand2)}
-    table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #e5e7eb;vertical-align:top} th{color:var(--muted);font-weight:600}
-    .table{overflow:auto}.hidden{display:none !important}.leader{display:grid;gap:10px}.leader-item{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fafafa}
-    .notice{padding:12px;border:1px dashed var(--line);border-radius:12px;background:#fafafa}.match-card{border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:12px;background:#fafafa}
-    .match-title{font-weight:700;margin-bottom:10px}.score-grid{display:grid;grid-template-columns:1fr 56px 1fr;gap:10px;align-items:end}.vs{display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:700}.team-label{font-size:13px;color:#374151;margin-bottom:6px}
-    .save-hint{font-size:13px;color:var(--muted);margin-top:6px}.section-note{font-size:13px;color:var(--muted)}
-    @media (max-width:900px){.grid,.row,.row2,.row4,.kpis,.score-grid{grid-template-columns:1fr}}
-    @media (max-width:640px){.wrap{padding:12px}button{min-height:44px;width:100%}.tabs button,.subtabs button,.actions button{width:auto;flex:1 1 calc(50% - 8px)} .table table{min-width:720px}.card{padding:14px}.match-card{padding:12px}}
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Peruma WC Predictor</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#0b1020;--bg2:#0e1530;--card:#ffffff;--text:#1f2937;--muted:#6b7280;--line:#e5e7eb;
+  --brand:#0f766e;--brand2:#134e4a;--accent:#f59e0b;--soft:#ecfeff;--good:#16a34a;--bad:#b91c1c;
+  --radius:16px;--shadow:0 6px 24px rgba(0,0,0,.08)
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:linear-gradient(180deg,#0b1020,#162250 60%,#1b2a5e);color:var(--text);-webkit-font-smoothing:antialiased}
+.app{max-width:760px;margin:0 auto;padding:14px 14px 96px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#fff;padding:8px 4px 14px}
+header h1{font-size:20px;margin:0;letter-spacing:.2px}
+.status{font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px;background:#fef2f2;color:#991b1b;white-space:nowrap}
+.status.ok{background:#dcfce7;color:#166534}
+.ghost{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:999px;padding:8px 12px;font:inherit;font-size:13px;cursor:pointer}
+.card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:14px}
+.card h2{margin:0 0 4px;font-size:17px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+button,input,select{font:inherit}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;padding:12px 16px;border-radius:12px;transition:.15s;font-weight:600}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff;width:100%}
+.btn.primary:active{transform:scale(.99)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+label{display:grid;gap:6px;font-size:13px;color:#374151;font-weight:600}
+input,select{width:100%;padding:13px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--text)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pill{display:inline-block;background:var(--soft);color:var(--brand2);padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800}
+
+/* match prediction card */
+.match{border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px;background:#fcfcfd}
+.match.locked{background:#f3f4f6;opacity:.85}
+.match-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}
+.match-teams{font-weight:800;font-size:15px}
+.countdown{font-size:12px;font-weight:800;padding:4px 9px;border-radius:999px;background:#fff7ed;color:#9a3412;white-space:nowrap}
+.countdown.soon{background:#fef2f2;color:#991b1b}
+.countdown.closed{background:#e5e7eb;color:#374151}
+.score-grid{display:grid;grid-template-columns:1fr 40px 1fr;gap:10px;align-items:end}
+.vs{display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:800;padding-bottom:12px}
+.team-label{font-size:12px;color:#374151;margin-bottom:6px;font-weight:700;text-align:center}
+.num{text-align:center;font-size:20px;font-weight:800;padding:14px 6px}
+.winner-row{margin-top:12px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.seg button{padding:11px;border-radius:12px;border:1px solid var(--line);background:#fff;font-weight:700;cursor:pointer}
+.seg button.sel{background:var(--brand2);border-color:var(--brand2);color:#fff}
+.saved-tag{font-size:12px;font-weight:700;color:var(--good);margin-left:8px}
+
+/* leaderboard */
+.lead{display:grid;gap:10px}
+.lead-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:#fcfcfd}
+.rank{font-weight:800;font-size:16px;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eef2ff;color:#3730a3;flex:0 0 auto}
+.rank.g1{background:#fde68a;color:#92400e}.rank.g2{background:#e5e7eb;color:#374151}.rank.g3{background:#fed7aa;color:#9a3412}
+.lead-name{font-weight:700;flex:1}
+.lead-pts{font-weight:800;color:var(--brand2);font-size:18px}
+.lead-sub{font-size:12px;color:var(--muted);font-weight:600}
+
+/* breakdown */
+.bd-player{border:1px solid var(--line);border-radius:14px;margin-top:12px;overflow:hidden}
+.bd-head{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;background:#f8fafc;cursor:pointer}
+.bd-head strong{font-size:15px}
+.bd-body{display:none;padding:6px 14px 12px}
+.bd-player.open .bd-body{display:block}
+.bd-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #f1f5f9;font-size:14px}
+.bd-row:last-child{border-bottom:none}
+.bd-reason{font-size:12px;color:var(--muted)}
+.chip{font-weight:800;padding:2px 9px;border-radius:999px;font-size:13px;white-space:nowrap}
+.chip.p5{background:#dcfce7;color:#166534}.chip.p3{background:#dbeafe;color:#1e40af}.chip.p1{background:#fef9c3;color:#854d0e}.chip.p0{background:#fee2e2;color:#991b1b}
+
+.empty{padding:18px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px;background:#fafafa}
+.note{font-size:13px;color:var(--muted)}
+.table{overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #eef2f7}
+th{color:var(--muted);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+.row4{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+details summary{cursor:pointer;font-weight:700;color:var(--brand2)}
+.hidden{display:none !important}
+
+/* bottom tab bar (mobile-first) */
+.tabbar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;z-index:30;padding:6px 6px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -4px 16px rgba(0,0,0,.06)}
+.tabbar button{flex:1;background:none;border:none;padding:8px 4px;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer}
+.tabbar button .ic{font-size:19px;line-height:1}
+.tabbar button.active{color:var(--brand);background:var(--soft)}
+.view{display:none}
+.view.active{display:block}
+@media(min-width:760px){.tabbar{max-width:760px;margin:0 auto;border-radius:16px 16px 0 0}}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="top">
-      <div>
-        <h1>Family World Cup Tracker</h1>
-        <span class="pill" id="apiStatus" style="background:#fef2f2;color:#991b1b">App Loading...</span>
-      </div>
-      <div class="actions"><button id="btnReload">Refresh Data</button></div>
+<div class="app">
+  <header>
+    <h1>⚽ Peruma WC Predictor</h1>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="status" id="apiStatus">Loading…</span>
+      <button class="ghost" id="btnReload">↻</button>
     </div>
+  </header>
 
-    <div class="tabs">
-      <button class="tab-btn active" data-target="view-player-input">Input</button>
-      <button class="tab-btn" data-target="view-player-leaderboard">Leaderboard</button>
-      <button class="tab-btn" data-target="view-setup">Database Setup</button>
+  <!-- PREDICT -->
+  <section class="view active" id="view-predict">
+    <div class="card">
+      <h2>Make your predictions</h2>
+      <p class="sub">Pick your name and the match day. Matches lock at their deadline.</p>
+      <div class="row2">
+        <label>I am…<select id="predPlayer"></select></label>
+        <label>Match day<select id="predDate"></select></label>
+      </div>
     </div>
+    <div id="predictionCards"></div>
+    <button class="btn primary" id="saveAllPredictions" style="margin-top:4px">Save my predictions</button>
+    <p class="note" id="saveMsg" style="text-align:center;margin-top:10px"></p>
+  </section>
 
-    <section id="view-admin" class="grid view-section hidden">
-      <div class="stack">
-        <div class="card">
-          <h2>Admin</h2>
-          <div class="subtabs">
-            <button class="subtab-btn-admin active" data-target="admin-matches">Matches</button>
-            <button class="subtab-btn-admin" data-target="admin-results">Results</button>
-          </div>
-        </div>
-        <div class="card panel-admin" id="admin-matches">
-          <h2>Load matches</h2>
-          <div class="row4">
-            <label>Date<input type="date" id="matchDate"></label>
-            <label>Team 1<input id="team1" placeholder="Brazil"></label>
-            <label>Team 2<input id="team2" placeholder="France"></label>
-            <label>Deadline<input type="time" id="deadline" value="20:00"></label>
-          </div>
-          <div class="actions"><button class="primary" id="addMatch">Add match</button></div>
-          <div class="table"><table><thead><tr><th>Date</th><th>Match</th><th>Deadline</th><th>Status</th></tr></thead><tbody id="matchesBody"></tbody></table></div>
-        </div>
-        <div class="card panel-admin hidden" id="admin-results">
-          <h2>Update scores</h2>
-          <div class="row4">
-            <label>Match<select id="resultMatch"></select></label>
-            <label>90-min score 1<input id="actual1" type="number" min="0"></label>
-            <label>90-min score 2<input id="actual2" type="number" min="0"></label>
-            <label>Winner<select id="actualWinner"></select></label>
-          </div>
-          <div class="actions"><button class="primary" id="saveResult">Save result</button></div>
-          <div class="table"><table><thead><tr><th>Match</th><th>90 min</th><th>Winner</th></tr></thead><tbody id="resultsBody"></tbody></table></div>
-        </div>
-      </div>
-      <div class="stack">
-        <div class="card">
-          <h2>Status</h2>
-          <div class="kpis">
-            <div class="kpi"><div>Players</div><div class="n" id="kPlayers">9</div></div>
-            <div class="kpi"><div>Matches</div><div class="n" id="kMatchesToday">0</div></div>
-            <div class="kpi"><div>Predictions</div><div class="n" id="kPredictions">0</div></div>
-          </div>
-        </div>
-        <div class="card"><h2>Fixtures</h2><div id="fixtures"></div></div>
-      </div>
-    </section>
+  <!-- LEADERBOARD -->
+  <section class="view" id="view-leaderboard">
+    <div class="card">
+      <h2>Leaderboard</h2>
+      <p class="sub">Total points across all matches played.</p>
+      <div class="lead" id="leaderboard"></div>
+    </div>
+  </section>
 
-    <section id="view-player-input" class="grid view-section">
-      <div class="stack">
-        <div class="card">
-          <h2>Player predictions</h2>
-          <p class="section-note">Choose one person and one date. Then fill all matches for that day in one screen.</p>
-          <div class="subtabs">
-            <button class="subtab-btn-player active" data-target="player-predictions">Predictions</button>
-            <button class="subtab-btn-player" data-target="player-scoreboard">Scoreboard</button>
-          </div>
-        </div>
-        <div class="card panel-player" id="player-predictions">
-          <div class="row2">
-            <label>I am...<select id="predPlayer"></select></label>
-            <label>Date<select id="predDate"></select></label>
-          </div>
-          <div id="predictionCards"></div>
-          <div class="actions"><button class="primary" id="saveAllPredictions">Save all predictions for this day</button></div>
-          <div class="table"><table><thead><tr><th>Player</th><th>Match</th><th>Prediction</th><th>Points</th></tr></thead><tbody id="predictionsBody"></tbody></table></div>
-        </div>
-        <div class="card panel-player hidden" id="player-scoreboard-old">
-          <h2>Scoreboard</h2>
-          <div class="table"><table><thead><tr><th>Rank</th><th>Player</th><th>Total</th><th>Breakup</th></tr></thead><tbody id="scoreboardBody"></tbody></table></div>
-        </div>
-      </div>
-      <div class="stack">
-        <div class="card"><h2>Leaderboard</h2><div class="leader" id="leaderboard"></div></div>
-        <div class="card"><details><summary><strong>Admin tools</strong></summary><div style="margin-top:12px"><button id="openAdminBtn">Open admin panel</button></div></details></div>
-        <div class="card"><h2>Rules</h2><p>Winner + exact score = 5. Winner + 1 exact = 3. Winner only = 1. Draw in 90 + wrong winner = 3. Draw + correct winner = 5.</p></div>
-      </div>
-    </section>
+  <!-- BREAKDOWN -->
+  <section class="view" id="view-breakdown">
+    <div class="card">
+      <h2>Player breakdown</h2>
+      <p class="sub">Tap a player to see points from each match and why.</p>
+      <div id="breakdown"></div>
+    </div>
+  </section>
 
-    <section id="view-player-leaderboard" class="grid view-section hidden"><div class="card"><h2>Leaderboard</h2><div class="leader" id="leaderboardOnly"></div></div><div class="card"><h2>Full scoreboard</h2><div class="table"><table><thead><tr><th>Rank</th><th>Player</th><th>Total</th><th>Breakup</th></tr></thead><tbody id="scoreboardBodyOnly"></tbody></table></div></div></section>
-
-    <section id="view-setup" class="view-section hidden">
-      <div class="card">
-        <h2>Database Connection</h2>
-        <p>If you do not enter keys, the app works in offline mode for quick testing.</p>
-        <div class="stack" style="margin-top:16px">
-          <label>Supabase URL<input id="supaUrlInput" placeholder="https://xyz.supabase.co"></label>
-          <label>Publishable Key<input id="supaKeyInput" placeholder="sb_publishable_..."></label>
-          <div><button class="primary" id="saveSupaBtn">Connect Database</button></div>
-        </div>
+  <!-- ADMIN -->
+  <section class="view" id="view-admin">
+    <div class="card">
+      <h2>Admin · Matches</h2>
+      <p class="sub">Add the matches players can predict. Deadline controls when predictions lock.</p>
+      <div class="row4">
+        <label>Date<input type="date" id="matchDate"></label>
+        <label>Deadline<input type="time" id="deadline" value="20:00"></label>
+        <label>Team 1<input id="team1" placeholder="Brazil"></label>
+        <label>Team 2<input id="team2" placeholder="France"></label>
       </div>
-    </section>
-  </div>
+      <button class="btn primary" id="addMatch" style="margin-top:12px">Add match</button>
+      <div class="table" style="margin-top:14px">
+        <table><thead><tr><th>Date</th><th>Match</th><th>Deadline</th><th>Status</th></tr></thead>
+        <tbody id="matchesBody"></tbody></table>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Admin · Results</h2>
+      <p class="sub">Enter the 90-minute score and the winner to award points.</p>
+      <div class="row4">
+        <label>Match<select id="resultMatch"></select></label>
+        <label>Winner<select id="actualWinner"></select></label>
+        <label>Score 1<input id="actual1" type="number" min="0"></label>
+        <label>Score 2<input id="actual2" type="number" min="0"></label>
+      </div>
+      <button class="btn primary" id="saveResult" style="margin-top:12px">Save result</button>
+      <div class="table" style="margin-top:14px">
+        <table><thead><tr><th>Match</th><th>90 min</th><th>Winner</th></tr></thead>
+        <tbody id="resultsBody"></tbody></table>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Rules</h2>
+      <p class="note">Winner + exact score = <strong>5</strong> · Winner + one exact score = <strong>3</strong> · Winner only = <strong>1</strong> · Correct draw call = <strong>5</strong> · Draw in 90 but you picked a winner = <strong>3</strong>.</p>
+    </div>
+  </section>
 
+  <!-- SETUP -->
+  <section class="view" id="view-setup">
+    <div class="card">
+      <h2>Database connection</h2>
+      <p class="sub">Leave blank to run in offline mode for quick testing.</p>
+      <label style="margin-bottom:12px">Supabase URL<input id="supaUrlInput" placeholder="https://xyz.supabase.co"></label>
+      <label style="margin-bottom:12px">Publishable Key<input id="supaKeyInput" placeholder="sb_publishable_…"></label>
+      <button class="btn primary" id="saveSupaBtn">Connect database</button>
+    </div>
+  </section>
+</div>
+
+<!-- bottom tab bar -->
+<nav class="tabbar">
+  <button class="tab active" data-target="view-predict"><span class="ic">📝</span>Predict</button>
+  <button class="tab" data-target="view-leaderboard"><span class="ic">🏆</span>Leaders</button>
+  <button class="tab" data-target="view-breakdown"><span class="ic">📊</span>Breakdown</button>
+  <button class="tab" data-target="view-admin"><span class="ic">⚙️</span>Admin</button>
+  <button class="tab" data-target="view-setup"><span class="ic">🔌</span>Setup</button>
+</nav>
+</body>
+</html>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
   const qs = id => document.getElementById(id);
-  const setStatus = (msg, ok) => { const el=qs('apiStatus'); if(el){ el.textContent=msg; el.style.background=ok?'#ecfdf5':'#fef2f2'; el.style.color=ok?'#166534':'#991b1b'; } };
-  const escapeHtml = s => String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const uid = p => p + '-' + Math.random().toString(36).substring(2,8);
+  const setStatus = (msg, ok) => { const el=qs('apiStatus'); el.textContent=msg; el.classList.toggle('ok', !!ok); };
+  const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const uid = p => p + '-' + Math.random().toString(36).slice(2,8);
   const isBlank = v => v === '' || v === null || v === undefined;
 
-  const wireTabs = (btnClass, panelClass) => {
-    const btns = document.querySelectorAll('.' + btnClass);
-    btns.forEach(btn => btn.addEventListener('click', () => {
-      btns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      document.querySelectorAll('.' + panelClass).forEach(p => p.classList.add('hidden'));
-      const target = document.getElementById(btn.getAttribute('data-target'));
-      if(target) target.classList.remove('hidden');
-    }));
-  };
-  wireTabs('tab-btn','view-section');
-  document.getElementById('openAdminBtn') && document.getElementById('openAdminBtn').addEventListener('click', function(){ document.querySelectorAll('.view-section').forEach(p=>p.classList.add('hidden')); document.getElementById('view-admin').classList.remove('hidden'); document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); });
-  wireTabs('subtab-btn-admin','panel-admin');
-  wireTabs('subtab-btn-player','panel-player');
+  // ---- tab bar ----
+  const tabs = document.querySelectorAll('.tabbar .tab');
+  tabs.forEach(btn => btn.addEventListener('click', () => {
+    tabs.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    qs(btn.getAttribute('data-target')).classList.add('active');
+  }));
 
-  let db = {
-    players:[{id:'Eldho',name:'Eldho'},{id:'Irene',name:'Irene'},{id:'Lorraine',name:'Lorraine'},{id:'Mini',name:'Mini'},{id:'Saju',name:'Saju'},{id:'Sameera',name:'Sameera'},{id:'Suraj',name:'Suraj'},{id:'Vaheeda',name:'Vaheeda'},{id:'Vassim',name:'Vassim'}],
-    matches:[], predictions:[], results:[]
-  };
-  let supabaseClient = null;
-  let isOffline = true;
+  // ---- data ----
+  let db = {players:[{id:'Eldho',name:'Eldho'},{id:'Irene',name:'Irene'},{id:'Lorraine',name:'Lorraine'},{id:'Mini',name:'Mini'},{id:'Saju',name:'Saju'},{id:'Sameera',name:'Sameera'},{id:'Suraj',name:'Suraj'},{id:'Vaheeda',name:'Vaheeda'},{id:'Vassim',name:'Vassim'}],matches:[],predictions:[],results:[]};
+  let supabaseClient = null, isOffline = true;
   const STORAGE_KEY = 'wc-tracker-creds';
   const cfg = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"url":"","key":""}');
   qs('supaUrlInput').value = cfg.url || '';
   qs('supaKeyInput').value = cfg.key || '';
 
-  function scorePrediction(pred, result){
-    if(!pred || !result) return 0;
-    if(isBlank(pred.score1) || isBlank(pred.score2) || !pred.winner) return 0;
-    const ps1=Number(pred.score1), ps2=Number(pred.score2), as1=Number(result.score1), as2=Number(result.score2);
+  // ---- deadline helpers ----
+  // Deadline is ALWAYS 9 PM IST (UTC+5:30) on the match date = 15:30 UTC.
+  const matchDeadline = m => m.date ? new Date(m.date + 'T15:30:00Z') : null;
+  const isLocked = m => { const d = matchDeadline(m); return d ? new Date() > d : false; };
+  function countdownText(m){
+    const d = matchDeadline(m);
+    if(!d) return {txt:'No deadline', cls:''};
+    const ms = d - new Date();
+    if(ms <= 0) return {txt:'🔒 Closed', cls:'closed'};
+    const h = Math.floor(ms/3600000), min = Math.floor((ms%3600000)/60000);
+    if(h >= 24){ const days=Math.floor(h/24); return {txt:`${days}d ${h%24}h to go`, cls:''}; }
+    if(h < 2) return {txt:`${h}h ${min}m to go`, cls:'soon'};
+    return {txt:`${h}h to go`, cls:''};
+  }
+
+  // ---- scoring (with reasons) ----
+  function scoreDetail(pred, result){
+    if(!result) return {points:0, reason:'Match not scored yet'};
+    if(!pred || isBlank(pred.score1) || isBlank(pred.score2) || !pred.winner) return {points:0, reason:'No prediction made'};
+    const ps1=+pred.score1, ps2=+pred.score2, as1=+result.score1, as2=+result.score2;
     const exact = ps1===as1 && ps2===as2;
     const oneTeam = ps1===as1 || ps2===as2;
     const correctWinner = pred.winner===result.winner;
     const draw90 = as1===as2;
-    if(draw90 && correctWinner) return 5;
-    if(exact && correctWinner) return 5;
-    if(draw90 && !correctWinner) return 3;
-    if(correctWinner && oneTeam) return 3;
-    if(correctWinner) return 1;
-    return 0;
+    if(draw90 && correctWinner) return {points:5, reason:'Called the draw correctly'};
+    if(exact && correctWinner) return {points:5, reason:'Winner + exact score'};
+    if(draw90 && !correctWinner) return {points:3, reason:'Draw in 90 — picked a winner'};
+    if(correctWinner && oneTeam) return {points:3, reason:'Winner + one exact score'};
+    if(correctWinner) return {points:1, reason:'Winner only'};
+    return {points:0, reason:'Wrong call'};
   }
+  const scorePrediction = (p,r) => scoreDetail(p,r).points;
 
   function refreshResultWinnerSelect(){
-    const rMatch = qs('resultMatch').value;
-    const m = db.matches.find(x => x.id === rMatch);
-    qs('actualWinner').innerHTML = '<option value="">Select winner</option>' + (m ? `<option value="${escapeHtml(m.team1)}">${escapeHtml(m.team1)}</option><option value="${escapeHtml(m.team2)}">${escapeHtml(m.team2)}</option>` : '');
+    const m = db.matches.find(x => x.id === qs('resultMatch').value);
+    qs('actualWinner').innerHTML = '<option value="">Winner</option>' + (m ? `<option value="${escapeHtml(m.team1)}">${escapeHtml(m.team1)}</option><option value="${escapeHtml(m.team2)}">${escapeHtml(m.team2)}</option>` : '');
   }
 
+  // ---- predict cards ----
   function renderPredictionCards(){
-    const playerId = qs('predPlayer').value;
-    const date = qs('predDate').value;
-    const box = qs('predictionCards');
+    const playerId = qs('predPlayer').value, date = qs('predDate').value, box = qs('predictionCards');
+    if(!playerId){ box.innerHTML = '<div class="card"><div class="empty">Select your name to start.</div></div>'; return; }
+    if(!date){ box.innerHTML = '<div class="card"><div class="empty">Select a match day.</div></div>'; return; }
     const matches = db.matches.filter(m => m.date === date);
-    if(!playerId){ box.innerHTML = '<p>Select a player first.</p>'; return; }
-    if(!date){ box.innerHTML = '<p>Select a date to load all matches for that day.</p>'; return; }
-    if(!matches.length){ box.innerHTML = '<p>No matches found for this date.</p>'; return; }
+    if(!matches.length){ box.innerHTML = '<div class="card"><div class="empty">No matches on this day.</div></div>'; return; }
     box.innerHTML = matches.map(m => {
-      const existing = db.predictions.find(p => p.playerId === playerId && p.matchId === m.id) || {};
-      return `<div class="match-card" data-match-id="${m.id}">
-        <div class="match-title">${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</div>
-        <div class="score-grid">
-          <label><span class="team-label">${escapeHtml(m.team1)} score</span><input type="number" min="0" class="pred-score1" value="${escapeHtml(existing.score1 || '')}" placeholder="0"></label>
-          <div class="vs">VS</div>
-          <label><span class="team-label">${escapeHtml(m.team2)} score</span><input type="number" min="0" class="pred-score2" value="${escapeHtml(existing.score2 || '')}" placeholder="0"></label>
+      const ex = db.predictions.find(p => p.playerId===playerId && p.matchId===m.id) || {};
+      const cd = countdownText(m), locked = isLocked(m);
+      const w = ex.winner;
+      return `<div class="match ${locked?'locked':''}" data-match-id="${m.id}">
+        <div class="match-head">
+          <span class="match-teams">${escapeHtml(m.team1)} <span style="color:#9ca3af">vs</span> ${escapeHtml(m.team2)}${ex.winner?'<span class="saved-tag">✓ saved</span>':''}</span>
+          <span class="countdown ${cd.cls}">${cd.txt}</span>
         </div>
-        <label style="margin-top:10px">Winner<select class="pred-winner"><option value="">Select winner</option><option value="${escapeHtml(m.team1)}" ${existing.winner===m.team1?'selected':''}>${escapeHtml(m.team1)}</option><option value="${escapeHtml(m.team2)}" ${existing.winner===m.team2?'selected':''}>${escapeHtml(m.team2)}</option></select></label>
-        <div class="save-hint">Finish this card and continue to the next match.</div>
+        <div class="score-grid">
+          <div><div class="team-label">${escapeHtml(m.team1)}</div><input class="num pred-score1" type="number" min="0" inputmode="numeric" value="${escapeHtml(ex.score1 ?? '')}" placeholder="0" ${locked?'disabled':''}></div>
+          <div class="vs">–</div>
+          <div><div class="team-label">${escapeHtml(m.team2)}</div><input class="num pred-score2" type="number" min="0" inputmode="numeric" value="${escapeHtml(ex.score2 ?? '')}" placeholder="0" ${locked?'disabled':''}></div>
+        </div>
+        <div class="winner-row">
+          <div class="team-label" style="text-align:left">Who wins?</div>
+          <div class="seg">
+            <button type="button" class="pick-winner ${w===m.team1?'sel':''}" data-team="${escapeHtml(m.team1)}" ${locked?'disabled':''}>${escapeHtml(m.team1)}</button>
+            <button type="button" class="pick-winner ${w===m.team2?'sel':''}" data-team="${escapeHtml(m.team2)}" ${locked?'disabled':''}>${escapeHtml(m.team2)}</button>
+          </div>
+          <input type="hidden" class="pred-winner" value="${escapeHtml(w ?? '')}">
+        </div>
+        ${locked?'<p class="note" style="margin:10px 0 0">🔒 Predictions are locked for this match.</p>':''}
       </div>`;
     }).join('');
+    // wire winner toggles
+    box.querySelectorAll('.match').forEach(card => {
+      card.querySelectorAll('.pick-winner').forEach(b => b.addEventListener('click', () => {
+        card.querySelectorAll('.pick-winner').forEach(x => x.classList.remove('sel'));
+        b.classList.add('sel');
+        card.querySelector('.pred-winner').value = b.getAttribute('data-team');
+      }));
+    });
   }
 
   function renderAll(){
     const matchOpts = '<option value="">Select match</option>' + db.matches.map(m=>`<option value="${m.id}">${escapeHtml(m.date)}: ${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</option>`).join('');
-    const dateOpts = '<option value="">Select date</option>' + [...new Set(db.matches.map(m=>m.date))].sort().map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+    const dateOpts = '<option value="">Select day</option>' + [...new Set(db.matches.map(m=>m.date))].sort().map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
     qs('resultMatch').innerHTML = matchOpts;
     qs('predDate').innerHTML = dateOpts;
     qs('predPlayer').innerHTML = '<option value="">Select your name</option>' + db.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
     refreshResultWinnerSelect();
 
-    qs('matchesBody').innerHTML = db.matches.length ? db.matches.map(m=>`<tr><td>${escapeHtml(m.date)}</td><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${escapeHtml(m.deadline||'-')}</td><td>${db.results.find(r=>r.matchId===m.id)?'Updated':'Pending'}</td></tr>`).join('') : '<tr><td colspan="4">No matches yet.</td></tr>';
-    qs('resultsBody').innerHTML = db.results.length ? db.results.map(r=>{ const m=db.matches.find(x=>x.id===r.matchId); return m ? `<tr><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${r.score1}-${r.score2}</td><td>${escapeHtml(r.winner)}</td></tr>` : ''; }).join('') : '<tr><td colspan="3">No results yet.</td></tr>';
+    qs('matchesBody').innerHTML = db.matches.length ? db.matches.map(m=>`<tr><td>${escapeHtml(m.date)}</td><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${escapeHtml(m.deadline||'-')}</td><td>${db.results.find(r=>r.matchId===m.id)?'✅ Scored':(isLocked(m)?'🔒 Locked':'🟢 Open')}</td></tr>`).join('') : '<tr><td colspan="4">No matches yet.</td></tr>';
+    qs('resultsBody').innerHTML = db.results.length ? db.results.map(r=>{const m=db.matches.find(x=>x.id===r.matchId);return m?`<tr><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${r.score1}-${r.score2}</td><td>${escapeHtml(r.winner)}</td></tr>`:'';}).join('') : '<tr><td colspan="3">No results yet.</td></tr>';
 
-    const withPts = db.predictions.map(p => ({...p, points: scorePrediction(p, db.results.find(r=>r.matchId===p.matchId))}));
-    qs('predictionsBody').innerHTML = withPts.length ? withPts.map(p=>{ const m=db.matches.find(x=>x.id===p.matchId); return m ? `<tr><td>${escapeHtml(p.playerId)}</td><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${p.score1}-${p.score2} (${escapeHtml(p.winner)})</td><td>${p.points}</td></tr>` : ''; }).join('') : '<tr><td colspan="4">No predictions yet.</td></tr>';
-
-    const map = {}; db.players.forEach(p => map[p.id] = {name:p.name, pts:0, detail:[]});
-    withPts.forEach(p => { if(map[p.playerId]) { const m=db.matches.find(x=>x.id===p.matchId); map[p.playerId].pts += p.points; if(m) map[p.playerId].detail.push(`${m.team1} vs ${m.team2}: ${p.points}`); } });
+    // aggregate
+    const map = {}; db.players.forEach(p => map[p.id] = {name:p.name, pts:0, played:0, detail:[]});
+    db.predictions.forEach(p => {
+      const r = db.results.find(x=>x.matchId===p.matchId);
+      const m = db.matches.find(x=>x.id===p.matchId);
+      const sd = scoreDetail(p, r);
+      if(map[p.playerId] && m){
+        map[p.playerId].pts += sd.points;
+        if(r) map[p.playerId].played++;
+        map[p.playerId].detail.push({match:`${m.team1} vs ${m.team2}`, date:m.date, pred:`${p.score1}-${p.score2} (${p.winner})`, points:sd.points, reason:sd.reason, scored:!!r});
+      }
+    });
     const ranks = Object.values(map).sort((a,b)=>b.pts-a.pts || a.name.localeCompare(b.name));
-    const leaderboardHtml = ranks.map((r,i)=>`<div class="leader-item"><div><strong>#${i+1} ${escapeHtml(r.name)}</strong></div><span class="pill">${r.pts} pts</span></div>`).join('');
-    const scoreboardHtml = ranks.map((r,i)=>`<tr><td>#${i+1}</td><td>${escapeHtml(r.name)}</td><td><strong>${r.pts}</strong></td><td>${escapeHtml(r.detail.join(' · ') || '-')}</td></tr>`).join('');
-    qs('leaderboard').innerHTML = leaderboardHtml;
-    if(qs('leaderboardOnly')) qs('leaderboardOnly').innerHTML = leaderboardHtml;
-    qs('scoreboardBody').innerHTML = scoreboardHtml;
-    if(qs('scoreboardBodyOnly')) qs('scoreboardBodyOnly').innerHTML = scoreboardHtml;
 
-    qs('kPlayers').textContent = db.players.length;
-    qs('kMatchesToday').textContent = db.matches.length;
-    qs('kPredictions').textContent = db.predictions.length;
-    const now = new Date();
-    const openMatches = db.matches.filter(m => { if(!m.date || !m.deadline) return true; const dt = new Date(m.date + 'T' + m.deadline); return now <= dt; });
-    qs('fixtures').innerHTML = openMatches.length ? openMatches.map(m=>`<div class="notice" style="margin-bottom:10px"><strong>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</strong><br><span>${escapeHtml(m.date)} · deadline ${escapeHtml(m.deadline||'')}</span></div>`).join('') : '<p>No open matches right now.</p>';
+    qs('leaderboard').innerHTML = ranks.map((r,i)=>{
+      const g = i===0?'g1':i===1?'g2':i===2?'g3':'';
+      return `<div class="lead-item"><div class="rank ${g}">${i+1}</div><div class="lead-name">${escapeHtml(r.name)}<div class="lead-sub">${r.played} match${r.played===1?'':'es'} scored</div></div><div class="lead-pts">${r.pts}<span style="font-size:12px;color:#9ca3af"> pts</span></div></div>`;
+    }).join('') || '<div class="empty">No points yet.</div>';
+
+    qs('breakdown').innerHTML = ranks.map(r=>{
+      const rows = r.detail.length ? r.detail.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(d=>{
+        const cls = d.points===5?'p5':d.points===3?'p3':d.points===1?'p1':'p0';
+        return `<div class="bd-row"><div><div>${escapeHtml(d.match)}</div><div class="bd-reason">${escapeHtml(d.pred)} · ${escapeHtml(d.reason)}</div></div><span class="chip ${cls}">${d.scored?d.points+' pts':'—'}</span></div>`;
+      }).join('') : '<div class="bd-row"><span class="bd-reason">No predictions yet.</span></div>';
+      return `<div class="bd-player"><div class="bd-head"><strong>${escapeHtml(r.name)}</strong><span class="pill">${r.pts} pts</span></div><div class="bd-body">${rows}</div></div>`;
+    }).join('') || '<div class="empty">No players.</div>';
+    // wire accordion
+    qs('breakdown').querySelectorAll('.bd-head').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('open')));
 
     renderPredictionCards();
   }
 
   async function loadData(){
-    if (!cfg.url || !cfg.key) { isOffline = true; setStatus('Offline Mode (No Database)', false); renderAll(); return; }
-    try {
-      if(!window.supabase) throw new Error('Supabase library not loaded');
+    if(!cfg.url || !cfg.key){ isOffline=true; setStatus('Offline mode', false); renderAll(); return; }
+    try{
+      if(!window.supabase) throw new Error('Supabase not loaded');
       supabaseClient = window.supabase.createClient(cfg.url, cfg.key);
-      setStatus('Loading...', true);
+      setStatus('Loading…', true);
       const [mRes,pRes,rRes] = await Promise.all([
         supabaseClient.from('matches').select('*').order('date'),
         supabaseClient.from('predictions').select('*'),
         supabaseClient.from('results').select('*')
       ]);
       if(mRes.error) throw mRes.error; if(pRes.error) throw pRes.error; if(rRes.error) throw rRes.error;
-      db.matches = mRes.data || []; db.predictions = pRes.data || []; db.results = rRes.data || [];
-      isOffline = false; setStatus('Database connected', true);
-    } catch(e) {
-      setStatus('DB Error: ' + e.message, false); isOffline = true;
-    }
+      db.matches=mRes.data||[]; db.predictions=pRes.data||[]; db.results=rRes.data||[];
+      isOffline=false; setStatus('Connected', true);
+    }catch(e){ setStatus('DB error: '+e.message, false); isOffline=true; }
     renderAll();
   }
 
-  qs('saveSupaBtn').addEventListener('click', () => { cfg.url = qs('supaUrlInput').value.trim(); cfg.key = qs('supaKeyInput').value.trim(); localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg)); loadData(); });
+  // ---- events ----
+  qs('saveSupaBtn').addEventListener('click', () => { cfg.url=qs('supaUrlInput').value.trim(); cfg.key=qs('supaKeyInput').value.trim(); localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg)); loadData(); });
   qs('btnReload').addEventListener('click', loadData);
   qs('predPlayer').addEventListener('change', renderPredictionCards);
   qs('predDate').addEventListener('change', renderPredictionCards);
@@ -275,48 +369,50 @@ document.addEventListener('DOMContentLoaded', function(){
 
   qs('addMatch').addEventListener('click', async () => {
     const date=qs('matchDate').value, team1=qs('team1').value.trim(), team2=qs('team2').value.trim(), deadline=qs('deadline').value;
-    if(!date || !team1 || !team2) return alert('Fill all match fields');
-    const obj = { id: uid('match'), date, team1, team2, deadline };
-    if(isOffline){ db.matches.push(obj); renderAll(); return; }
-    const {error} = await supabaseClient.from('matches').insert([obj]); if(error) return alert(error.message); await loadData();
+    if(!date||!team1||!team2) return alert('Fill date and both teams');
+    const obj={id:uid('match'),date,team1,team2,deadline};
+    if(isOffline){ db.matches.push(obj); qs('team1').value=''; qs('team2').value=''; renderAll(); return; }
+    const {error}=await supabaseClient.from('matches').insert([obj]); if(error) return alert(error.message); await loadData();
   });
 
   qs('saveResult').addEventListener('click', async () => {
     const matchId=qs('resultMatch').value, score1=qs('actual1').value, score2=qs('actual2').value, winner=qs('actualWinner').value;
-    if(!matchId || isBlank(score1) || isBlank(score2) || !winner) return alert('Fill all result fields');
-    const obj = { matchId, score1, score2, winner };
-    if(isOffline){ const idx=db.results.findIndex(x=>x.matchId===matchId); if(idx>-1) db.results[idx]=obj; else db.results.push(obj); renderAll(); return; }
-    const {error} = await supabaseClient.from('results').upsert([obj]); if(error) return alert(error.message); await loadData();
+    if(!matchId||isBlank(score1)||isBlank(score2)||!winner) return alert('Fill all result fields');
+    const obj={matchId,score1,score2,winner};
+    if(isOffline){ const i=db.results.findIndex(x=>x.matchId===matchId); i>-1?db.results[i]=obj:db.results.push(obj); renderAll(); return; }
+    const {error}=await supabaseClient.from('results').upsert([obj]); if(error) return alert(error.message); await loadData();
   });
 
   qs('saveAllPredictions').addEventListener('click', async () => {
-    const playerId = qs('predPlayer').value;
-    const date = qs('predDate').value;
-    if(!playerId || !date) return alert('Select player and date first');
-    const cards = Array.from(document.querySelectorAll('#predictionCards .match-card'));
-    if(!cards.length) return alert('No matches found for this date');
-    const rows = [];
+    const playerId=qs('predPlayer').value, date=qs('predDate').value;
+    if(!playerId||!date) return alert('Select your name and a match day');
+    const cards=Array.from(document.querySelectorAll('#predictionCards .match'));
+    if(!cards.length) return alert('No matches for this day');
+    const rows=[]; let skipped=0;
     for(const card of cards){
-      const matchId = card.getAttribute('data-match-id');
-      const score1 = card.querySelector('.pred-score1').value;
-      const score2 = card.querySelector('.pred-score2').value;
-      const winner = card.querySelector('.pred-winner').value;
-      if(isBlank(score1) || isBlank(score2) || !winner) return alert('Please fill all matches before saving');
-      const existing = db.predictions.find(x => x.playerId===playerId && x.matchId===matchId);
-      rows.push({ id: existing ? existing.id : uid('pred'), playerId, matchId, score1, score2, winner });
+      const matchId=card.getAttribute('data-match-id');
+      const m=db.matches.find(x=>x.id===matchId);
+      if(isLocked(m)){ skipped++; continue; } // never overwrite locked matches
+      const score1=card.querySelector('.pred-score1').value;
+      const score2=card.querySelector('.pred-score2').value;
+      const winner=card.querySelector('.pred-winner').value;
+      if(isBlank(score1)||isBlank(score2)||!winner) return alert('Fill scores and winner for "'+m.team1+' vs '+m.team2+'" (or it is locked).');
+      const existing=db.predictions.find(x=>x.playerId===playerId && x.matchId===matchId);
+      rows.push({id:existing?existing.id:uid('pred'),playerId,matchId,score1,score2,winner});
     }
+    if(!rows.length){ qs('saveMsg').textContent='All matches for this day are locked — nothing to save.'; return; }
     if(isOffline){
-      rows.forEach(obj => { const i=db.predictions.findIndex(x=>x.playerId===obj.playerId && x.matchId===obj.matchId); if(i>-1) db.predictions[i]=obj; else db.predictions.push(obj); });
-      renderAll(); alert('Saved for this day'); return;
+      rows.forEach(obj=>{ const i=db.predictions.findIndex(x=>x.playerId===obj.playerId&&x.matchId===obj.matchId); i>-1?db.predictions[i]=obj:db.predictions.push(obj); });
+      renderAll(); qs('saveMsg').textContent=`Saved ${rows.length} prediction${rows.length===1?'':'s'}${skipped?` · ${skipped} locked, skipped`:''}.`; return;
     }
-    const {error} = await supabaseClient.from('predictions').upsert(rows);
+    const {error}=await supabaseClient.from('predictions').upsert(rows);
     if(error) return alert(error.message);
-    await loadData();
-    alert('Saved for this day');
+    await loadData(); qs('saveMsg').textContent=`Saved ${rows.length} prediction${rows.length===1?'':'s'}${skipped?` · ${skipped} locked, skipped`:''}.`;
   });
+
+  // refresh countdowns every minute
+  setInterval(() => { if(qs('view-predict').classList.contains('active')) renderPredictionCards(); }, 60000);
 
   loadData();
 });
 </script>
-</body>
-</html>
