@@ -138,10 +138,9 @@ details summary{cursor:pointer;font-weight:700;color:var(--brand2)}
   <section class="view" id="view-admin">
     <div class="card">
       <h2>Admin · Matches</h2>
-      <p class="sub">Add the matches players can predict. Deadline controls when predictions lock.</p>
+      <p class="sub">Add the matches players can predict. Every match locks at <strong>9 PM IST</strong> on its date.</p>
       <div class="row4">
         <label>Date<input type="date" id="matchDate"></label>
-        <label>Deadline<input type="time" id="deadline" value="20:00"></label>
         <label>Team 1<input id="team1" placeholder="Brazil"></label>
         <label>Team 2<input id="team2" placeholder="France"></label>
       </div>
@@ -176,7 +175,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--brand2)}
   <section class="view" id="view-setup">
     <div class="card">
       <h2>Database connection</h2>
-      <p class="sub">Leave blank to run in offline mode for quick testing.</p>
+      <p class="sub">Already pre-connected — no setup needed. These fields only let you override the built-in database for testing.</p>
       <label style="margin-bottom:12px">Supabase URL<input id="supaUrlInput" placeholder="https://xyz.supabase.co"></label>
       <label style="margin-bottom:12px">Publishable Key<input id="supaKeyInput" placeholder="sb_publishable_…"></label>
       <button class="btn primary" id="saveSupaBtn">Connect database</button>
@@ -215,7 +214,11 @@ document.addEventListener('DOMContentLoaded', function(){
   let db = {players:[{id:'Eldho',name:'Eldho'},{id:'Irene',name:'Irene'},{id:'Lorraine',name:'Lorraine'},{id:'Mini',name:'Mini'},{id:'Saju',name:'Saju'},{id:'Sameera',name:'Sameera'},{id:'Suraj',name:'Suraj'},{id:'Vaheeda',name:'Vaheeda'},{id:'Vassim',name:'Vassim'}],matches:[],predictions:[],results:[]};
   let supabaseClient = null, isOffline = true;
   const STORAGE_KEY = 'wc-tracker-creds';
-  const cfg = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"url":"","key":""}');
+  // Built-in defaults so every device/browser connects automatically with no setup.
+  // The publishable (anon) key is safe to ship in the page — it is protected by Supabase Row Level Security.
+  const DEFAULTS = { url:'https://kjarkdiwfzalvjewohdd.supabase.co', key:'sb_publishable_dk2Nv_LXHrne21OYvS4JYw_efl-qyiZ' };
+  const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  const cfg = { url: stored.url || DEFAULTS.url, key: stored.key || DEFAULTS.key };
   qs('supaUrlInput').value = cfg.url || '';
   qs('supaKeyInput').value = cfg.key || '';
 
@@ -307,7 +310,7 @@ document.addEventListener('DOMContentLoaded', function(){
     qs('predPlayer').innerHTML = '<option value="">Select your name</option>' + db.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
     refreshResultWinnerSelect();
 
-    qs('matchesBody').innerHTML = db.matches.length ? db.matches.map(m=>`<tr><td>${escapeHtml(m.date)}</td><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${escapeHtml(m.deadline||'-')}</td><td>${db.results.find(r=>r.matchId===m.id)?'✅ Scored':(isLocked(m)?'🔒 Locked':'🟢 Open')}</td></tr>`).join('') : '<tr><td colspan="4">No matches yet.</td></tr>';
+    qs('matchesBody').innerHTML = db.matches.length ? db.matches.map(m=>`<tr><td>${escapeHtml(m.date)}</td><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>9 PM IST</td><td>${db.results.find(r=>r.matchId===m.id)?'✅ Scored':(isLocked(m)?'🔒 Locked':'🟢 Open')}</td></tr>`).join('') : '<tr><td colspan="4">No matches yet.</td></tr>';
     qs('resultsBody').innerHTML = db.results.length ? db.results.map(r=>{const m=db.matches.find(x=>x.id===r.matchId);return m?`<tr><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${r.score1}-${r.score2}</td><td>${escapeHtml(r.winner)}</td></tr>`:'';}).join('') : '<tr><td colspan="3">No results yet.</td></tr>';
 
     // aggregate
@@ -368,9 +371,9 @@ document.addEventListener('DOMContentLoaded', function(){
   qs('resultMatch').addEventListener('change', refreshResultWinnerSelect);
 
   qs('addMatch').addEventListener('click', async () => {
-    const date=qs('matchDate').value, team1=qs('team1').value.trim(), team2=qs('team2').value.trim(), deadline=qs('deadline').value;
+    const date=qs('matchDate').value, team1=qs('team1').value.trim(), team2=qs('team2').value.trim();
     if(!date||!team1||!team2) return alert('Fill date and both teams');
-    const obj={id:uid('match'),date,team1,team2,deadline};
+    const obj={id:uid('match'),date,team1,team2,deadline:'21:00 IST'};
     if(isOffline){ db.matches.push(obj); qs('team1').value=''; qs('team2').value=''; renderAll(); return; }
     const {error}=await supabaseClient.from('matches').insert([obj]); if(error) return alert(error.message); await loadData();
   });
