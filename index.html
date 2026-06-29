@@ -58,6 +58,14 @@ input:focus,select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 
 .seg button{padding:12px;border-radius:12px;border:1px solid var(--line);background:#08080a;color:var(--text);font-weight:700;cursor:pointer;transition:.15s}
 .seg button.sel{background:linear-gradient(180deg,var(--gold2),var(--gold));border:none;color:#1a1408}
 .saved-tag{font-size:12px;font-weight:700;color:var(--good);margin-left:8px}
+.daybar{margin-top:14px;padding:12px 14px;border:1px solid #2c2718;border-radius:12px;background:var(--soft);font-weight:800;color:var(--gold2);font-size:14px}
+.winner-hint{font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px;text-align:left}
+.winner-auto{font-size:14px;font-weight:700;padding:11px 13px;border-radius:12px;background:#11201a;color:var(--good);border:1px solid #1e3a2c}
+.winner-auto .auto-tag{font-size:11px;color:var(--muted);font-weight:600;margin-left:6px}
+.pred-tally{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:grid;gap:5px}
+.tally-line{font-size:13px;color:var(--text);line-height:1.4}
+.tally-team{font-weight:800;color:var(--gold2);margin-right:6px}
+.tally-empty{color:var(--muted)}
 
 /* leaderboard */
 .lead{display:grid;gap:10px}
@@ -91,6 +99,7 @@ input:focus,select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 
 
 .empty{padding:20px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px;background:var(--card2)}
 .note{font-size:13px;color:var(--muted);line-height:1.5}
+.note.success{color:var(--good);font-weight:800;font-size:14px}
 .table{overflow:auto}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:11px 8px;border-bottom:1px solid var(--line)}
@@ -123,11 +132,10 @@ details summary{cursor:pointer;font-weight:700;color:var(--gold2)}
   <section class="view active" id="view-predict">
     <div class="card">
       <h2>Make your predictions</h2>
-      <p class="sub">Pick your name and the match day. Matches lock at their deadline.</p>
-      <div class="row2">
-        <label>I am…<select id="predPlayer"></select></label>
-        <label>Match day<select id="predDate"></select></label>
-      </div>
+      <p class="sub">Predictions are open for the current match day only. Pick your name and fill every match.</p>
+      <label>I am…<select id="predPlayer"></select></label>
+      <div class="daybar" id="activeDayBar">Loading match day…</div>
+      <input type="hidden" id="predDate">
     </div>
     <div id="predictionCards"></div>
     <button class="btn primary" id="saveAllPredictions" style="margin-top:4px">Save my predictions</button>
@@ -322,7 +330,7 @@ document.addEventListener('DOMContentLoaded', function(){
   function renderPredictionCards(){
     const playerId = qs('predPlayer').value, date = qs('predDate').value, box = qs('predictionCards');
     if(!playerId){ box.innerHTML = '<div class="card"><div class="empty">Select your name to start.</div></div>'; return; }
-    if(!date){ box.innerHTML = '<div class="card"><div class="empty">Select a match day.</div></div>'; return; }
+    if(!date){ box.innerHTML = '<div class="card"><div class="empty">No open match day right now.</div></div>'; return; }
     const matches = db.matches.filter(m => m.date === date);
     if(!matches.length){ box.innerHTML = '<div class="card"><div class="empty">No matches on this day.</div></div>'; return; }
     box.innerHTML = matches.map(m => {
@@ -340,33 +348,71 @@ document.addEventListener('DOMContentLoaded', function(){
           <div><div class="team-label">${escapeHtml(m.team2)}</div><input class="num pred-score2" type="number" min="0" inputmode="numeric" value="${escapeHtml(ex.score2 ?? '')}" placeholder="0" ${locked?'disabled':''}></div>
         </div>
         <div class="winner-row">
-          <div class="team-label" style="text-align:left">Who wins?</div>
-          <div class="seg">
-            <button type="button" class="pick-winner ${w===m.team1?'sel':''}" data-team="${escapeHtml(m.team1)}" ${locked?'disabled':''}>${escapeHtml(m.team1)}</button>
-            <button type="button" class="pick-winner ${w===m.team2?'sel':''}" data-team="${escapeHtml(m.team2)}" ${locked?'disabled':''}>${escapeHtml(m.team2)}</button>
-          </div>
+          <div class="winner-zone"></div>
           <input type="hidden" class="pred-winner" value="${escapeHtml(w ?? '')}">
         </div>
+        <div class="pred-tally">${tallyHtml(m)}</div>
         ${locked?'<p class="note" style="margin:10px 0 0">🔒 Predictions are locked for this match.</p>':''}
       </div>`;
     }).join('');
-    // wire winner toggles
-    box.querySelectorAll('.match').forEach(card => {
-      card.querySelectorAll('.pick-winner').forEach(b => b.addEventListener('click', () => {
-        if(b.hasAttribute('disabled')) return;
-        card.querySelectorAll('.pick-winner').forEach(x => x.classList.remove('sel'));
-        b.classList.add('sel');
-        card.querySelector('.pred-winner').value = b.getAttribute('data-team');
-        updateSaveState();
-      }));
-    });
     // one submission per match day: lock if already submitted
     if(hasSubmittedDay(playerId, date)){
-      box.querySelectorAll('input,.pick-winner').forEach(el => el.setAttribute('disabled','disabled'));
+      box.querySelectorAll('input').forEach(el => el.setAttribute('disabled','disabled'));
       box.insertAdjacentHTML('afterbegin','<div class="empty" style="margin-bottom:12px">\u2713 You have already submitted for this day. Only one submission is allowed per match day.</div>');
     }
-    // live validation -> enable Save only when every open match is fully filled
-    box.querySelectorAll('input').forEach(inp => inp.addEventListener('input', updateSaveState));
+    // build winner UI from scores, and recompute it whenever a score changes
+    box.querySelectorAll('.match').forEach(card => {
+      updateWinnerUI(card);
+      card.querySelectorAll('.pred-score1,.pred-score2').forEach(inp => inp.addEventListener('input', () => updateWinnerUI(card)));
+    });
+  }
+
+  // Winner is derived from the score. Only a draw (equal scores) needs a manual pick.
+  function updateWinnerUI(card){
+    const m = db.matches.find(x => x.id === card.getAttribute('data-match-id'));
+    if(!m) return;
+    const s1 = card.querySelector('.pred-score1').value;
+    const s2 = card.querySelector('.pred-score2').value;
+    const zone = card.querySelector('.winner-zone');
+    const hidden = card.querySelector('.pred-winner');
+    const disabled = card.querySelector('.pred-score1').hasAttribute('disabled');
+    if(s1==='' || s2===''){
+      zone.innerHTML = '<div class="winner-hint">Enter both scores to set the winner.</div>';
+      updateSaveState(); return;
+    }
+    if(Number(s1) !== Number(s2)){
+      const w = Number(s1) > Number(s2) ? m.team1 : m.team2;
+      hidden.value = w;
+      zone.innerHTML = `<div class="winner-auto">🏆 Winner: <strong>${escapeHtml(w)}</strong><span class="auto-tag">auto from score</span></div>`;
+      updateSaveState(); return;
+    }
+    // draw in 90 -> player must pick who wins overall
+    const cur = (hidden.value===m.team1 || hidden.value===m.team2) ? hidden.value : '';
+    hidden.value = cur;
+    zone.innerHTML = `<div class="winner-hint">Draw in 90 — who wins overall?</div><div class="seg">`+
+      `<button type="button" class="pick-winner ${cur===m.team1?'sel':''}" data-team="${escapeHtml(m.team1)}" ${disabled?'disabled':''}>${escapeHtml(m.team1)}</button>`+
+      `<button type="button" class="pick-winner ${cur===m.team2?'sel':''}" data-team="${escapeHtml(m.team2)}" ${disabled?'disabled':''}>${escapeHtml(m.team2)}</button></div>`;
+    zone.querySelectorAll('.pick-winner').forEach(b => b.addEventListener('click', () => {
+      if(b.hasAttribute('disabled')) return;
+      zone.querySelectorAll('.pick-winner').forEach(x => x.classList.remove('sel'));
+      b.classList.add('sel');
+      hidden.value = b.getAttribute('data-team');
+      updateSaveState();
+    }));
+    updateSaveState();
+  }
+
+  // Who predicted whom for a match
+  function tallyHtml(m){
+    const nameOf = id => (db.players.find(x=>x.id===id)||{}).name || id;
+    const preds = db.predictions.filter(p => p.matchId===m.id && p.winner);
+    if(!preds.length) return '<div class="tally-line tally-empty">No predictions yet.</div>';
+    const g1 = preds.filter(p=>p.winner===m.team1).map(p=>nameOf(p.playerId));
+    const g2 = preds.filter(p=>p.winner===m.team2).map(p=>nameOf(p.playerId));
+    let out='';
+    if(g1.length) out += `<div class="tally-line"><span class="tally-team">${escapeHtml(m.team1)}:</span>${escapeHtml(g1.join(', '))}</div>`;
+    if(g2.length) out += `<div class="tally-line"><span class="tally-team">${escapeHtml(m.team2)}:</span>${escapeHtml(g2.join(', '))}</div>`;
+    return out || '<div class="tally-line tally-empty">No predictions yet.</div>';
   }
 
   // a player has "submitted" a day if they have any prediction for a match on that date
@@ -404,17 +450,19 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function renderPredictTab(){
-    const date = qs('predDate').value;
+    const openDays = [...new Set(db.matches.filter(m=>!isLocked(m)).map(m=>m.date))].sort();
+    const dueDay = openDays[0] || '';
+    qs('predDate').value = dueDay;
+    const bar = qs('activeDayBar'); if(bar) bar.textContent = dueDay ? ('📅 Match day: ' + dueDay) : 'No open match day right now.';
+    const msg = qs('saveMsg'); if(msg){ msg.className='note'; msg.textContent=''; }
     renderPredictionCards();
-    renderSubmitStatus(date);
+    renderSubmitStatus(dueDay);
     updateSaveState();
   }
 
   function renderAll(){
     const matchOpts = '<option value="">Select match</option>' + db.matches.map(m=>`<option value="${m.id}">${escapeHtml(m.date)}: ${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</option>`).join('');
-    const dateOpts = '<option value="">Select day</option>' + [...new Set(db.matches.map(m=>m.date))].sort().map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
     qs('resultMatch').innerHTML = matchOpts;
-    qs('predDate').innerHTML = dateOpts;
     qs('predPlayer').innerHTML = '<option value="">Select your name</option>' + db.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
     refreshResultWinnerSelect();
 
@@ -538,14 +586,14 @@ document.addEventListener('DOMContentLoaded', function(){
       const existing=db.predictions.find(x=>x.playerId===playerId && x.matchId===matchId);
       rows.push({id:existing?existing.id:uid('pred'),playerId,matchId,score1,score2,winner});
     }
-    if(!rows.length){ qs('saveMsg').textContent='All matches for this day are locked — nothing to save.'; return; }
+    if(!rows.length){ qs('saveMsg').className='note'; qs('saveMsg').textContent='All matches for this day are locked — nothing to save.'; return; }
     if(isOffline){
       rows.forEach(obj=>{ const i=db.predictions.findIndex(x=>x.playerId===obj.playerId&&x.matchId===obj.matchId); i>-1?db.predictions[i]=obj:db.predictions.push(obj); });
-      renderAll(); qs('saveMsg').textContent=`Saved ${rows.length} prediction${rows.length===1?'':'s'}${skipped?` · ${skipped} locked, skipped`:''}.`; return;
+      renderAll(); qs('saveMsg').className='note success'; qs('saveMsg').textContent='\u2713 Successfully Completed — your predictions are locked in.'; return;
     }
     const {error}=await supabaseClient.from('predictions').upsert(rows);
     if(error) return alert(error.message);
-    await loadData(); qs('saveMsg').textContent=`Saved ${rows.length} prediction${rows.length===1?'':'s'}${skipped?` · ${skipped} locked, skipped`:''}.`;
+    await loadData(); qs('saveMsg').className='note success'; qs('saveMsg').textContent='\u2713 Successfully Completed — your predictions are locked in.';
   });
 
   // refresh countdowns / pending every minute
