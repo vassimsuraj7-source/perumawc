@@ -77,6 +77,11 @@ input:focus,select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 
 .lead-name{font-weight:700;flex:1;font-size:15px}
 .lead-pts{font-family:var(--serif);font-weight:700;color:var(--gold2);font-size:22px}
 .lead-sub{font-size:12px;color:var(--muted);font-weight:500;margin-top:2px}
+.lead-card{border:1px solid var(--line);border-radius:14px;background:var(--card2);overflow:hidden}
+.lead-card .lead-item{border:none;border-radius:0;background:transparent;cursor:pointer}
+.lead-body{display:none;padding:0 16px 14px}
+.lead-card.open .lead-body{display:block}
+.edit-btn{margin-top:10px;border:1px solid var(--gold);background:transparent;color:var(--gold2);padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer}
 
 /* pending */
 .pending-wrap{display:flex;flex-wrap:wrap;gap:8px}
@@ -161,12 +166,12 @@ details summary{cursor:pointer;font-weight:700;color:var(--gold2)}
     </div>
   </section>
 
-  <!-- BREAKDOWN -->
-  <section class="view" id="view-breakdown">
+  <!-- INSIGHTS -->
+  <section class="view" id="view-insights">
     <div class="card">
-      <h2>Player breakdown</h2>
-      <p class="sub">Tap a player to see points from each match and why.</p>
-      <div id="breakdown"></div>
+      <h2>Insights</h2>
+      <p class="sub">Match by match: who predicted what, and who scored once the result is in.</p>
+      <div id="insights"></div>
     </div>
   </section>
 
@@ -182,7 +187,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--gold2)}
     <div id="adminContent" class="hidden">
     <div class="card">
       <h2>Admin · Matches</h2>
-      <p class="sub">Add the matches players can predict. Every match locks at <strong>9 PM IST</strong> on its date.</p>
+      <p class="sub">Add the matches players can predict. Every match locks at <strong>10 PM IST</strong> on its date.</p>
       <div class="row4">
         <label>Date<input type="date" id="matchDate"></label>
         <label>Team 1<input id="team1" placeholder="Brazil"></label>
@@ -232,7 +237,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--gold2)}
 <nav class="tabbar">
   <button class="tab active" data-target="view-predict"><span class="ic">📝</span>Predict</button>
   <button class="tab" data-target="view-leaderboard"><span class="ic">🏆</span>Leaders</button>
-  <button class="tab" data-target="view-breakdown"><span class="ic">📊</span>Breakdown</button>
+  <button class="tab" data-target="view-insights"><span class="ic">📊</span>Insights</button>
   <button class="tab" data-target="view-admin"><span class="ic">⚙️</span>Admin</button>
   <button class="tab" data-target="view-setup"><span class="ic">🔌</span>Setup</button>
 </nav>
@@ -279,6 +284,7 @@ document.addEventListener('DOMContentLoaded', function(){
   // ---- data ----
   let db = {players:[{id:'Eldho',name:'Eldho'},{id:'Irene',name:'Irene'},{id:'Lorraine',name:'Lorraine'},{id:'Mini',name:'Mini'},{id:'Saju',name:'Saju'},{id:'Sameera',name:'Sameera'},{id:'Suraj',name:'Suraj'},{id:'Vaheeda',name:'Vaheeda'},{id:'Vassim',name:'Vassim'}],matches:[],predictions:[],results:[]};
   let supabaseClient = null, isOffline = true;
+  let editing = false; // true when a submitted player has chosen to edit their day
   const STORAGE_KEY = 'wc-tracker-creds';
   // Built-in defaults so every device/browser connects automatically with no setup.
   // The publishable (anon) key is safe to ship in the page — it is protected by Supabase Row Level Security.
@@ -289,8 +295,8 @@ document.addEventListener('DOMContentLoaded', function(){
   qs('supaKeyInput').value = cfg.key || '';
 
   // ---- deadline helpers ----
-  // Deadline is ALWAYS 9 PM IST (UTC+5:30) on the match date = 15:30 UTC.
-  const matchDeadline = m => m.date ? new Date(m.date + 'T15:30:00Z') : null;
+  // Deadline is ALWAYS 10 PM IST (UTC+5:30) on the match date = 16:30 UTC.
+  const matchDeadline = m => m.date ? new Date(m.date + 'T16:30:00Z') : null;
   const isLocked = m => { const d = matchDeadline(m); return d ? new Date() > d : false; };
   function countdownText(m){
     const d = matchDeadline(m);
@@ -355,10 +361,16 @@ document.addEventListener('DOMContentLoaded', function(){
         ${locked?'<p class="note" style="margin:10px 0 0">🔒 Predictions are locked for this match.</p>':''}
       </div>`;
     }).join('');
-    // one submission per match day: lock if already submitted
-    if(hasSubmittedDay(playerId, date)){
+    // one submission per match day: lock if already submitted (unless editing)
+    const dayLocked = matches.length && isLocked(matches[0]);
+    if(hasSubmittedDay(playerId, date) && !editing){
       box.querySelectorAll('input').forEach(el => el.setAttribute('disabled','disabled'));
-      box.insertAdjacentHTML('afterbegin','<div class="empty" style="margin-bottom:12px">\u2713 You have already submitted for this day. Only one submission is allowed per match day.</div>');
+      const editBtn = (!dayLocked) ? '<div><button type="button" class="edit-btn" id="editBtn">✏️ Do you want to edit?</button></div>' : '';
+      box.insertAdjacentHTML('afterbegin', `<div class="empty" style="margin-bottom:12px">\u2713 You have already submitted for this day.${dayLocked?' Predictions are now locked.':''}${editBtn}</div>`);
+      const eb = qs('editBtn');
+      if(eb) eb.addEventListener('click', () => {
+        if(confirm('Do you want to edit your predictions for this day?')){ editing = true; renderPredictTab(); }
+      });
     }
     // build winner UI from scores, and recompute it whenever a score changes
     box.querySelectorAll('.match').forEach(card => {
@@ -423,13 +435,13 @@ document.addEventListener('DOMContentLoaded', function(){
     if(!btn) return;
     const playerId = qs('predPlayer').value, date = qs('predDate').value;
     if(!playerId || !date){ btn.disabled = true; btn.textContent = 'Save my predictions'; return; }
-    if(hasSubmittedDay(playerId, date)){ btn.disabled = true; btn.textContent = 'Already submitted'; return; }
+    if(hasSubmittedDay(playerId, date) && !editing){ btn.disabled = true; btn.textContent = 'Already submitted'; return; }
     const cards = Array.from(document.querySelectorAll('#predictionCards .match'));
     const editable = cards.filter(c => { const m = db.matches.find(x => x.id===c.getAttribute('data-match-id')); return !isLocked(m); });
     if(!editable.length){ btn.disabled = true; btn.textContent = 'No open matches'; return; }
     const allFilled = editable.every(c => c.querySelector('.pred-score1').value !== '' && c.querySelector('.pred-score2').value !== '' && c.querySelector('.pred-winner').value !== '');
     btn.disabled = !allFilled;
-    btn.textContent = allFilled ? 'Save my predictions' : 'Fill all fields to save';
+    btn.textContent = allFilled ? (editing ? 'Update my predictions' : 'Save my predictions') : 'Fill all fields to save';
   }
 
   // bottom-of-page submitted / yet-to-submit lists for the selected day
@@ -466,7 +478,7 @@ document.addEventListener('DOMContentLoaded', function(){
     qs('predPlayer').innerHTML = '<option value="">Select your name</option>' + db.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
     refreshResultWinnerSelect();
 
-    qs('matchesBody').innerHTML = db.matches.length ? db.matches.map(m=>`<tr><td>${escapeHtml(m.date)}</td><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>9 PM IST</td><td>${db.results.find(r=>r.matchId===m.id)?'✅ Scored':(isLocked(m)?'🔒 Locked':'🟢 Open')}</td></tr>`).join('') : '<tr><td colspan="4">No matches yet.</td></tr>';
+    qs('matchesBody').innerHTML = db.matches.length ? db.matches.map(m=>`<tr><td>${escapeHtml(m.date)}</td><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>10 PM IST</td><td>${db.results.find(r=>r.matchId===m.id)?'✅ Scored':(isLocked(m)?'🔒 Locked':'🟢 Open')}</td></tr>`).join('') : '<tr><td colspan="4">No matches yet.</td></tr>';
     qs('resultsBody').innerHTML = db.results.length ? db.results.map(r=>{const m=db.matches.find(x=>x.id===r.matchId);return m?`<tr><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${r.score1}-${r.score2}</td><td>${escapeHtml(r.winner)}</td></tr>`:'';}).join('') : '<tr><td colspan="3">No results yet.</td></tr>';
 
     // aggregate
@@ -483,20 +495,42 @@ document.addEventListener('DOMContentLoaded', function(){
     });
     const ranks = Object.values(map).sort((a,b)=>b.pts-a.pts || a.name.localeCompare(b.name));
 
+    // Leaderboard with expandable point breakdown
     qs('leaderboard').innerHTML = ranks.map((r,i)=>{
       const g = i===0?'g1':i===1?'g2':i===2?'g3':'';
-      return `<div class="lead-item"><div class="rank ${g}">${i+1}</div><div class="lead-name">${escapeHtml(r.name)}<div class="lead-sub">${r.played} match${r.played===1?'':'es'} scored</div></div><div class="lead-pts">${r.pts}<span style="font-size:12px;color:#9ca3af"> pts</span></div></div>`;
-    }).join('') || '<div class="empty">No points yet.</div>';
-
-    qs('breakdown').innerHTML = ranks.map(r=>{
-      const rows = r.detail.length ? r.detail.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(d=>{
+      const rows = r.detail.length ? r.detail.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(d=>{
         const cls = d.points===5?'p5':d.points===3?'p3':d.points===1?'p1':'p0';
-        return `<div class="bd-row"><div><div>${escapeHtml(d.match)}</div><div class="bd-reason">${escapeHtml(d.pred)} · ${escapeHtml(d.reason)}</div></div><span class="chip ${cls}">${d.scored?d.points+' pts':'—'}</span></div>`;
+        return `<div class="bd-row"><div><div>${escapeHtml(d.match)}</div><div class="bd-reason">${escapeHtml(d.pred)}${d.scored?' · '+escapeHtml(d.reason):' · not played yet'}</div></div><span class="chip ${cls}">${d.scored?d.points+' pts':'—'}</span></div>`;
       }).join('') : '<div class="bd-row"><span class="bd-reason">No predictions yet.</span></div>';
-      return `<div class="bd-player"><div class="bd-head"><strong>${escapeHtml(r.name)}</strong><span class="pill">${r.pts} pts</span></div><div class="bd-body">${rows}</div></div>`;
-    }).join('') || '<div class="empty">No players.</div>';
-    // wire accordion
-    qs('breakdown').querySelectorAll('.bd-head').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('open')));
+      return `<div class="lead-card"><div class="lead-item" data-acc><div class="rank ${g}">${i+1}</div><div class="lead-name">${escapeHtml(r.name)}<div class="lead-sub">${r.played} match${r.played===1?'':'es'} scored · tap for breakdown</div></div><div class="lead-pts">${r.pts}<span style="font-size:12px;color:var(--muted)"> pts</span></div></div><div class="lead-body">${rows}</div></div>`;
+    }).join('') || '<div class="empty">No points yet.</div>';
+    qs('leaderboard').querySelectorAll('.lead-item[data-acc]').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('open')));
+
+    // Insights — grouped by match: who predicted what, and who scored once results are in
+    const nameOf = id => (db.players.find(x=>x.id===id)||{}).name || id;
+    const sortedMatches = db.matches.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    qs('insights').innerHTML = sortedMatches.length ? sortedMatches.map(m=>{
+      const r = db.results.find(x=>x.matchId===m.id);
+      const preds = db.predictions.filter(p=>p.matchId===m.id);
+      const head = r
+        ? `<span class="chip p5">${escapeHtml(r.score1)}-${escapeHtml(r.score2)} · ${escapeHtml(r.winner)}</span>`
+        : `<span class="pill">Pending</span>`;
+      let rows;
+      if(!preds.length){
+        rows = '<div class="bd-row"><span class="bd-reason">No predictions for this match.</span></div>';
+      } else {
+        rows = preds.slice().sort((a,b)=>{ const pa=scoreDetail(a,r).points, pb=scoreDetail(b,r).points; return pb-pa; }).map(p=>{
+          const sd = scoreDetail(p, r);
+          const cls = sd.points===5?'p5':sd.points===3?'p3':sd.points===1?'p1':'p0';
+          const right = r ? `<span class="chip ${cls}">${sd.points} pts</span>` : '';
+          const why = r ? ' · ' + escapeHtml(sd.reason) : '';
+          return `<div class="bd-row"><div><div>${escapeHtml(nameOf(p.playerId))}</div><div class="bd-reason">predicted ${escapeHtml(p.score1)}-${escapeHtml(p.score2)} (${escapeHtml(p.winner)})${why}</div></div>${right}</div>`;
+        }).join('');
+      }
+      const metaLine = `<div class="bd-reason" style="margin:2px 0 8px">${escapeHtml(m.date)} · ${r?('Final: '+escapeHtml(r.score1)+'-'+escapeHtml(r.score2)+' ('+escapeHtml(r.winner)+')'):'Result not updated yet'}</div>`;
+      return `<div class="bd-player"><div class="bd-head"><strong>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</strong>${head}</div><div class="bd-body">${metaLine}${rows}</div></div>`;
+    }).join('') : '<div class="empty">No matches yet.</div>';
+    qs('insights').querySelectorAll('.bd-head').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('open')));
 
     renderPending();
     renderPredictTab();
@@ -548,14 +582,14 @@ document.addEventListener('DOMContentLoaded', function(){
   // ---- events ----
   qs('saveSupaBtn').addEventListener('click', () => { cfg.url=qs('supaUrlInput').value.trim(); cfg.key=qs('supaKeyInput').value.trim(); localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg)); loadData(); });
   qs('btnReload').addEventListener('click', loadData);
-  qs('predPlayer').addEventListener('change', renderPredictTab);
+  qs('predPlayer').addEventListener('change', () => { editing = false; renderPredictTab(); });
   qs('predDate').addEventListener('change', renderPredictTab);
   qs('resultMatch').addEventListener('change', refreshResultWinnerSelect);
 
   qs('addMatch').addEventListener('click', async () => {
     const date=qs('matchDate').value, team1=qs('team1').value.trim(), team2=qs('team2').value.trim();
     if(!date||!team1||!team2) return alert('Fill date and both teams');
-    const obj={id:uid('match'),date,team1,team2,deadline:'21:00 IST'};
+    const obj={id:uid('match'),date,team1,team2,deadline:'22:00 IST'};
     if(isOffline){ db.matches.push(obj); qs('team1').value=''; qs('team2').value=''; renderAll(); return; }
     const {error}=await supabaseClient.from('matches').insert([obj]); if(error) return alert(error.message); await loadData();
   });
@@ -571,7 +605,7 @@ document.addEventListener('DOMContentLoaded', function(){
   qs('saveAllPredictions').addEventListener('click', async () => {
     const playerId=qs('predPlayer').value, date=qs('predDate').value;
     if(!playerId||!date) return alert('Select your name and a match day');
-    if(hasSubmittedDay(playerId, date)) return alert('You have already submitted for this day. Only one submission is allowed per match day.');
+    if(hasSubmittedDay(playerId, date) && !editing) return alert('You have already submitted for this day. Only one submission is allowed per match day.');
     const cards=Array.from(document.querySelectorAll('#predictionCards .match'));
     if(!cards.length) return alert('No matches for this day');
     const rows=[]; let skipped=0;
@@ -587,13 +621,14 @@ document.addEventListener('DOMContentLoaded', function(){
       rows.push({id:existing?existing.id:uid('pred'),playerId,matchId,score1,score2,winner});
     }
     if(!rows.length){ qs('saveMsg').className='note'; qs('saveMsg').textContent='All matches for this day are locked — nothing to save.'; return; }
+    const wasEditing = editing; editing = false;
     if(isOffline){
       rows.forEach(obj=>{ const i=db.predictions.findIndex(x=>x.playerId===obj.playerId&&x.matchId===obj.matchId); i>-1?db.predictions[i]=obj:db.predictions.push(obj); });
-      renderAll(); qs('saveMsg').className='note success'; qs('saveMsg').textContent='\u2713 Successfully Completed — your predictions are locked in.'; return;
+      renderAll(); qs('saveMsg').className='note success'; qs('saveMsg').textContent = wasEditing ? '\u2713 Predictions updated successfully.' : '\u2713 Successfully Completed — your predictions are locked in.'; return;
     }
     const {error}=await supabaseClient.from('predictions').upsert(rows);
-    if(error) return alert(error.message);
-    await loadData(); qs('saveMsg').className='note success'; qs('saveMsg').textContent='\u2713 Successfully Completed — your predictions are locked in.';
+    if(error){ editing = wasEditing; return alert(error.message); }
+    await loadData(); qs('saveMsg').className='note success'; qs('saveMsg').textContent = wasEditing ? '\u2713 Predictions updated successfully.' : '\u2713 Successfully Completed — your predictions are locked in.';
   });
 
   // refresh countdowns / pending every minute
