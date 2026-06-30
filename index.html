@@ -246,7 +246,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--gold2)}
     </div>
     <div class="card">
       <h2>Rules</h2>
-      <p class="note">Winner + exact score = <strong>5</strong> · Winner + one exact score = <strong>3</strong> · Winner only = <strong>1</strong> · Correct draw call = <strong>5</strong> · Draw in 90 but you picked a winner = <strong>3</strong>.</p>
+      <p class="note">Decisive result: Winner + exact score = <strong>5</strong> · Winner + one exact score = <strong>3</strong> · Winner only = <strong>1</strong>.<br>Draw in 90 (to penalties): Predicted a draw + correct winner = <strong>5</strong> · Predicted a draw = <strong>3</strong> · Winner only (no draw predicted) = <strong>1</strong>.</p>
     </div>
     </div><!-- /adminContent -->
   </section>
@@ -344,15 +344,21 @@ document.addEventListener('DOMContentLoaded', function(){
     if(!result) return {points:0, reason:'Match not scored yet'};
     if(!pred || isBlank(pred.score1) || isBlank(pred.score2) || !pred.winner) return {points:0, reason:'No prediction made'};
     const ps1=+pred.score1, ps2=+pred.score2, as1=+result.score1, as2=+result.score2;
+    const predDraw = ps1===ps2;            // player predicted a draw in 90
+    const actualDraw = as1===as2;          // match ended level in 90 (went to pens)
     const exact = ps1===as1 && ps2===as2;
     const oneTeam = ps1===as1 || ps2===as2;
     const correctWinner = pred.winner===result.winner;
-    const draw90 = as1===as2;
-    if(draw90 && correctWinner) return {points:5, reason:'Called the draw correctly'};
-    if(exact && correctWinner) return {points:5, reason:'Winner + exact score'};
-    if(draw90 && !correctWinner) return {points:3, reason:'Draw in 90 — picked a winner'};
-    if(correctWinner && oneTeam) return {points:3, reason:'Winner + one exact score'};
-    if(correctWinner) return {points:1, reason:'Winner only'};
+    if(actualDraw){
+      if(predDraw && correctWinner) return {points:5, reason:'Predicted the draw + correct winner'};
+      if(predDraw)                  return {points:3, reason:'Predicted the draw'};
+      if(correctWinner)             return {points:1, reason:'Winner only'};
+      return {points:0, reason:'Wrong call'};
+    }
+    // decisive result (a team won in 90)
+    if(exact)                       return {points:5, reason:'Winner + exact score'};
+    if(correctWinner && oneTeam)    return {points:3, reason:'Winner + one exact score'};
+    if(correctWinner)               return {points:1, reason:'Winner only'};
     return {points:0, reason:'Wrong call'};
   }
   const scorePrediction = (p,r) => scoreDetail(p,r).points;
