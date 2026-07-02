@@ -205,7 +205,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--gold2)}
     <div id="adminContent" class="hidden">
     <div class="card">
       <h2>Admin · Matches</h2>
-      <p class="sub">Add the matches players can predict. Every match locks at <strong>10 PM IST</strong> on its date.</p>
+      <p class="sub">Add the matches players can predict. New matches open for entries by default — use the Open/Close button to control when predictions lock.</p>
       <div class="row4">
         <label>Date<input type="date" id="matchDate"></label>
         <label>Team 1<input id="team1" placeholder="Brazil"></label>
@@ -213,7 +213,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--gold2)}
       </div>
       <button class="btn primary" id="addMatch" style="margin-top:12px">Add match</button>
       <div class="table" style="margin-top:14px">
-        <table><thead><tr><th>Date</th><th>Match</th><th>Deadline</th><th>Status</th></tr></thead>
+        <table><thead><tr><th>Date</th><th>Match</th><th>Entries</th><th>Result</th></tr></thead>
         <tbody id="matchesBody"></tbody></table>
       </div>
     </div>
@@ -325,19 +325,10 @@ document.addEventListener('DOMContentLoaded', function(){
   qs('supaKeyInput').value = cfg.key || '';
 
   // ---- deadline helpers ----
-  // Deadline is ALWAYS 10 PM IST (UTC+5:30) on the match date = 16:30 UTC.
-  const matchDeadline = m => m.date ? new Date(m.date + 'T16:30:00Z') : null;
-  const isLocked = m => { const d = matchDeadline(m); return d ? new Date() > d : false; };
-  function countdownText(m){
-    const d = matchDeadline(m);
-    if(!d) return {txt:'No deadline', cls:''};
-    const ms = d - new Date();
-    if(ms <= 0) return {txt:'Closed', cls:'closed'};
-    const h = Math.floor(ms/3600000), min = Math.floor((ms%3600000)/60000);
-    if(h >= 24){ const days=Math.floor(h/24); return {txt:`${days}d ${h%24}h to go`, cls:''}; }
-    if(h < 2) return {txt:`${h}h ${min}m to go`, cls:'soon'};
-    return {txt:`${h}h to go`, cls:''};
-  }
+  // Entries are opened/closed MANUALLY by an admin per match.
+  // m.locked === true  => entries closed (predictions locked).
+  const isLocked = m => !!(m && m.locked);
+  const entryStatus = m => isLocked(m) ? {txt:'Closed', cls:'closed'} : {txt:'Open', cls:''};
 
   // ---- scoring (with reasons) ----
   function scoreDetail(pred, result){
@@ -377,7 +368,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if(!matches.length){ box.innerHTML = '<div class="card"><div class="empty">No matches on this day.</div></div>'; return; }
     box.innerHTML = matches.map(m => {
       const ex = db.predictions.find(p => p.playerId===playerId && p.matchId===m.id) || {};
-      const cd = countdownText(m), locked = isLocked(m);
+      const cd = entryStatus(m), locked = isLocked(m);
       const w = ex.winner;
       return `<div class="match ${locked?'locked':''}" data-match-id="${m.id}">
         <div class="match-head">
@@ -514,7 +505,14 @@ document.addEventListener('DOMContentLoaded', function(){
     qs('predPlayer').innerHTML = '<option value="">Select your name</option>' + db.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
     refreshResultWinnerSelect();
 
-    qs('matchesBody').innerHTML = db.matches.length ? db.matches.map(m=>`<tr><td>${escapeHtml(m.date)}</td><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>10 PM IST</td><td>${db.results.find(r=>r.matchId===m.id)?'Scored':(isLocked(m)?'Locked':'Open')}</td></tr>`).join('') : '<tr><td colspan="4">No matches yet.</td></tr>';
+    qs('matchesBody').innerHTML = db.matches.length ? db.matches.map(m=>{
+      const locked = isLocked(m);
+      const es = entryStatus(m);
+      const btn = `<button class="mini-btn ${locked?'':'danger'}" data-act="toggle-lock" data-id="${escapeHtml(m.id)}">${locked?'Open entries':'Close entries'}</button>`;
+      const entriesCell = `<span class="pill" style="${locked?'background:#161619;color:var(--muted);border-color:var(--line)':''}">${es.txt}</span> ${btn}`;
+      const resultCell = db.results.find(r=>r.matchId===m.id)?'Scored':'Pending';
+      return `<tr><td>${escapeHtml(m.date)}</td><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td style="white-space:nowrap">${entriesCell}</td><td>${resultCell}</td></tr>`;
+    }).join('') : '<tr><td colspan="4">No matches yet.</td></tr>';
     qs('resultsBody').innerHTML = db.results.length ? db.results.map(r=>{const m=db.matches.find(x=>x.id===r.matchId);return m?`<tr><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${r.score1}-${r.score2}</td><td>${escapeHtml(r.winner)}</td></tr>`:'';}).join('') : '<tr><td colspan="3">No results yet.</td></tr>';
 
     // aggregate
@@ -615,6 +613,15 @@ document.addEventListener('DOMContentLoaded', function(){
     }).join('') : '<tr><td colspan="4">No entries.</td></tr>';
   }
 
+  async function toggleMatchLock(id){
+    const m = db.matches.find(x=>x.id===id); if(!m) return;
+    const newLocked = !isLocked(m);
+    if(isOffline){ m.locked = newLocked; renderAll(); return; }
+    const {error} = await supabaseClient.from('matches').update({locked:newLocked}).eq('id', id);
+    if(error) return alert(error.message);
+    await loadData();
+  }
+
   async function deletePrediction(id){
     const p = db.predictions.find(x=>x.id===id); if(!p) return;
     if(!confirm('Delete this prediction entry? This cannot be undone.')) return;
@@ -668,6 +675,10 @@ document.addEventListener('DOMContentLoaded', function(){
   qs('predPlayer').addEventListener('change', () => { editing = false; renderPredictTab(); });
   qs('predDate').addEventListener('change', renderPredictTab);
   qs('resultMatch').addEventListener('change', refreshResultWinnerSelect);
+  qs('matchesBody').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act="toggle-lock"]'); if(!btn) return;
+    toggleMatchLock(btn.getAttribute('data-id'));
+  });
   qs('entryPlayerFilter').addEventListener('change', renderEntries);
   qs('entryMatchFilter').addEventListener('change', renderEntries);
   qs('entriesBody').addEventListener('click', e => {
@@ -680,7 +691,7 @@ document.addEventListener('DOMContentLoaded', function(){
   qs('addMatch').addEventListener('click', async () => {
     const date=qs('matchDate').value, team1=qs('team1').value.trim(), team2=qs('team2').value.trim();
     if(!date||!team1||!team2) return alert('Fill date and both teams');
-    const obj={id:uid('match'),date,team1,team2,deadline:'22:00 IST'};
+    const obj={id:uid('match'),date,team1,team2,locked:false};
     if(isOffline){ db.matches.push(obj); qs('team1').value=''; qs('team2').value=''; renderAll(); return; }
     const {error}=await supabaseClient.from('matches').insert([obj]); if(error) return alert(error.message); await loadData();
   });
@@ -722,11 +733,7 @@ document.addEventListener('DOMContentLoaded', function(){
     await loadData(); qs('saveMsg').className='note success'; qs('saveMsg').textContent = wasEditing ? 'Predictions updated successfully.' : 'Successfully completed — your predictions are locked in.';
   });
 
-  // refresh countdowns / pending every minute
-  setInterval(() => {
-    if(qs('view-predict').classList.contains('active')) renderPredictTab();
-    if(qs('view-leaderboard').classList.contains('active')) renderPending();
-  }, 60000);
+  // (entries are opened/closed manually by admin — no time-based refresh needed)
 
   loadData();
 });
