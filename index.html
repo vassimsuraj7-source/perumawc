@@ -60,6 +60,13 @@ input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
 .seg button{padding:12px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--text);font-weight:700;cursor:pointer;transition:.15s}
 .seg button.sel{background:linear-gradient(180deg,var(--accent),var(--accent2));border:none;color:#fff}
+.gt-row{margin-top:14px}
+.gt-hint{font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px;text-align:left}
+.gt-goals{display:grid;gap:8px}
+.gt-goal{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--text);font-weight:700}
+.gt-goal span{color:var(--muted);font-weight:600}
+.gt-goal select{width:auto;min-width:134px;padding:9px 10px}
+.gt-tag{display:inline-block;font-size:11px;font-weight:800;color:var(--accent2);background:var(--soft);border:1px solid #cfe6dd;border-radius:999px;padding:1px 7px;margin-left:6px;white-space:nowrap}
 .saved-tag{font-size:12px;font-weight:700;color:var(--good);margin-left:8px}
 .daybar{margin-top:14px;padding:12px 14px;border:1px solid #cfe6dd;border-radius:12px;background:var(--soft);font-weight:800;color:var(--accent2);font-size:14px}
 .standing{margin-top:10px;padding:12px 14px;border:1px solid #cfe6dd;border-radius:12px;background:#fff;color:var(--accent2);font-weight:700;font-size:14px}
@@ -92,11 +99,6 @@ input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
 .subtabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
 .subtab{background:#fff;border:1px solid var(--line);color:var(--muted);padding:7px 13px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s}
 .subtab.active{background:var(--soft);border-color:#cfe6dd;color:var(--accent2)}
-.dbl-row{margin-top:12px;display:flex;align-items:center;gap:10px}
-.dbl-btn{border:1px solid var(--line);background:#fff;color:var(--muted);padding:9px 13px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;transition:.15s;letter-spacing:.3px;white-space:nowrap}
-.dbl-btn.sel{background:linear-gradient(180deg,var(--gold),var(--gold2));border:none;color:#3a2a05}
-.dbl-hint{font-size:12px;color:var(--muted)}
-.dbl-tag{font-size:10px;font-weight:800;letter-spacing:.5px;color:var(--gold2);background:#fbf3dd;border:1px solid #ecdcae;border-radius:999px;padding:1px 7px;margin-left:6px}
 .form-block{margin:2px 0 12px;display:grid;gap:5px}
 .form-line{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);flex-wrap:wrap}
 .form-team{font-weight:700;color:var(--text);min-width:96px}
@@ -246,6 +248,10 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent)}
         <label>Score 1<input id="actual1" type="number" min="0"></label>
         <label>Score 2<input id="actual2" type="number" min="0"></label>
       </div>
+      <div id="resultGoalTimeWrap" class="hidden" style="margin-top:12px">
+        <div id="resultGoalTimeZone"></div>
+        <p class="note" style="margin:8px 0 0">Set the period each goal was scored in. Players earn +3 for every goal they timed correctly (matched per team).</p>
+      </div>
       <button class="btn primary" id="saveResult" style="margin-top:12px">Save result</button>
       <div class="table" style="margin-top:14px">
         <table><thead><tr><th>Match</th><th>90 min</th><th>Winner</th></tr></thead>
@@ -266,7 +272,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent)}
     </div>
     <div class="card">
       <h2>Rules</h2>
-      <p class="note">Decisive result: Winner + exact score = <strong>5</strong> · Winner + one exact score = <strong>3</strong> · Winner only = <strong>1</strong>.<br>Draw in 90 (to penalties): Predicted a draw + correct winner = <strong>5</strong> · Predicted a draw = <strong>3</strong> · Winner only (no draw predicted) = <strong>1</strong>.</p>
+      <p class="note">Decisive result: Winner + exact score = <strong>5</strong> · Winner + one exact score = <strong>3</strong> · Winner only = <strong>1</strong>.<br>Draw in 90 (to penalties): Predicted a draw + correct winner = <strong>5</strong> · Predicted a draw = <strong>3</strong> · Winner only (no draw predicted) = <strong>1</strong>.<br>Goal-timing bonus (Quarter Final onwards): for each goal in your predicted scoreline, pick the period it is scored in (1st half / 2nd half / extra time). Earn <strong>+3</strong> for each goal whose period you get right, matched per team. Optional, and awarded independently of the score.</p>
     </div>
     </div><!-- /adminContent -->
   </section>
@@ -340,6 +346,12 @@ document.addEventListener('DOMContentLoaded', function(){
   const ROUNDS = ['Round of 32','Round of 16','Quarter Final','Semi Final','3rd Place','Final'];
   const ADD_ROUNDS = ['Round of 16','Quarter Final','Semi Final','3rd Place','Final'];
   const roundOf = m => (m && m.round) ? m.round : 'Round of 32';
+  // Goal-time bonus (+3 for the correct period of the first goal) applies from the
+  // Quarter Final onwards, where there is only one match a day.
+  const TIMED_ROUNDS = ['Quarter Final','Semi Final','3rd Place','Final'];
+  const hasGoalTime = m => TIMED_ROUNDS.includes(roundOf(m));
+  const GT_LABEL = {FH:'1st half', SH:'2nd half', ET:'Extra time'};
+  const GT_OPTS = [['','—'],['FH','1st half'],['SH','2nd half'],['ET','Extra time']];
   let leaderRound = 'all';
   const STORAGE_KEY = 'wc-tracker-creds';
   // Built-in defaults so every device/browser connects automatically with no setup.
@@ -378,17 +390,36 @@ document.addEventListener('DOMContentLoaded', function(){
     if(correctWinner)               return {points:1, reason:'Winner only'};
     return {points:0, reason:'Wrong call'};
   }
-  // scoreDetail applies the player's optional 2x "double" power on top of the base score
+  // scoreDetail = base score + the goal-timing bonus (+3 per correctly-timed goal, per team).
   function scoreDetail(pred, result){
     const b = baseScore(pred, result);
-    if(pred && pred.double) return {points: b.points*2, reason: b.reason + ' · 2× doubled'};
-    return b;
+    let points = b.points, reason = b.reason;
+    const gt = goalTimePoints(pred, result);
+    if(gt > 0){ points += gt; reason += ` · +${gt} goal timing`; }
+    return {points, reason};
   }
   const scorePrediction = (p,r) => scoreDetail(p,r).points;
 
   function refreshResultWinnerSelect(){
     const m = db.matches.find(x => x.id === qs('resultMatch').value);
     qs('actualWinner').innerHTML = '<option value="">Winner</option>' + (m ? `<option value="${escapeHtml(m.team1)}">${escapeHtml(m.team1)}</option><option value="${escapeHtml(m.team2)}">${escapeHtml(m.team2)}</option>` : '');
+    refreshResultGoalTimeField();
+  }
+  // The per-goal timing selectors are only relevant from the Quarter Final onwards,
+  // and mirror the player interface: one dropdown per goal in the entered scoreline.
+  function refreshResultGoalTimeField(){
+    const wrap = qs('resultGoalTimeWrap'); if(!wrap) return;
+    const m = db.matches.find(x => x.id === qs('resultMatch').value);
+    const timed = !!(m && hasGoalTime(m));
+    wrap.classList.toggle('hidden', !timed);
+    if(!timed) return;
+    const zone = qs('resultGoalTimeZone');
+    const s1 = qs('actual1').value, s2 = qs('actual2').value;
+    if(s1 === '' || s2 === ''){ zone.innerHTML = '<div class="gt-hint">Enter both scores to set each goal’s timing.</div>'; return; }
+    const clamp = n => Math.max(0, Math.min(20, parseInt(n,10) || 0));
+    const r = db.results.find(x => x.matchId === m.id);
+    const cur = zone.querySelector('.gt-select') ? readGoalTimes(zone) : (r ? parseGT(r.goalTimes) : null);
+    zone.innerHTML = goalTimeSelectorsHtml(m.team1, m.team2, clamp(s1), clamp(s2), cur, false);
   }
 
   // ---- predict cards ----
@@ -402,6 +433,7 @@ document.addEventListener('DOMContentLoaded', function(){
       const ex = db.predictions.find(p => p.playerId===playerId && p.matchId===m.id) || {};
       const cd = entryStatus(m), locked = isLocked(m);
       const w = ex.winner;
+      const exGT = (hasGoalTime(m) && ex.goalTimes) ? JSON.stringify(parseGT(ex.goalTimes)) : '';
       return `<div class="match ${locked?'locked':''}" data-match-id="${m.id}">
         <div class="match-head">
           <span class="match-teams">${escapeHtml(m.team1)} <span style="color:#9ca3af">vs</span> ${escapeHtml(m.team2)}${ex.winner?'<span class="saved-tag">saved</span>':''}</span>
@@ -416,7 +448,10 @@ document.addEventListener('DOMContentLoaded', function(){
           <div class="winner-zone"></div>
           <input type="hidden" class="pred-winner" value="${escapeHtml(w ?? '')}">
         </div>
-        <div class="dbl-row"><button type="button" class="dbl-btn ${ex.double?'sel':''}" ${locked?'disabled':''}>2× Double</button><span class="dbl-hint">Pick exactly one match to double each day (required)</span></div>
+        ${hasGoalTime(m) ? `<div class="gt-row">
+          <div class="goal-time-zone"></div>
+          <input type="hidden" class="pred-goaltimes" value="${escapeHtml(exGT)}">
+        </div>` : ''}
         <div class="pred-tally">${tallyHtml(m)}</div>
         ${locked?'<p class="note" style="margin:10px 0 0">Predictions are locked for this match.</p>':''}
       </div>`;
@@ -424,7 +459,7 @@ document.addEventListener('DOMContentLoaded', function(){
     // one submission per match day: lock if already submitted (unless editing)
     const dayLocked = matches.length && isLocked(matches[0]);
     if(hasSubmittedDay(playerId, date) && !editing){
-      box.querySelectorAll('input,.dbl-btn').forEach(el => el.setAttribute('disabled','disabled'));
+      box.querySelectorAll('input,select').forEach(el => el.setAttribute('disabled','disabled'));
       const editBtn = (!dayLocked) ? '<div><button type="button" class="edit-btn" id="editBtn">Do you want to edit?</button></div>' : '';
       box.insertAdjacentHTML('afterbegin', `<div class="empty" style="margin-bottom:12px">You have already submitted for this day.${dayLocked?' Predictions are now locked.':''}${editBtn}</div>`);
       const eb = qs('editBtn');
@@ -435,16 +470,9 @@ document.addEventListener('DOMContentLoaded', function(){
     // build winner UI from scores, and recompute it whenever a score changes
     box.querySelectorAll('.match').forEach(card => {
       updateWinnerUI(card);
-      card.querySelectorAll('.pred-score1,.pred-score2').forEach(inp => inp.addEventListener('input', () => updateWinnerUI(card)));
+      updateGoalTimeUI(card);
+      card.querySelectorAll('.pred-score1,.pred-score2').forEach(inp => inp.addEventListener('input', () => { updateWinnerUI(card); updateGoalTimeUI(card); }));
     });
-    // double power: at most one match per day
-    box.querySelectorAll('.dbl-btn').forEach(b => b.addEventListener('click', () => {
-      if(b.hasAttribute('disabled')) return;
-      const wasSel = b.classList.contains('sel');
-      box.querySelectorAll('.dbl-btn').forEach(x => x.classList.remove('sel'));
-      if(!wasSel) b.classList.add('sel');
-      updateSaveState();
-    }));
   }
 
   // Winner is derived from the score. Only a draw (equal scores) needs a manual pick.
@@ -482,6 +510,77 @@ document.addEventListener('DOMContentLoaded', function(){
     updateSaveState();
   }
 
+  // ---- goal-timing helpers (Quarter Final onwards) ----
+  // Stored per prediction/result as {"1":[periods…],"2":[periods…]} keyed by team slot
+  // (slot 1 = match.team1, slot 2 = match.team2); one entry per goal in the scoreline.
+  function parseGT(v){
+    if(!v) return null;
+    let o = v;
+    if(typeof v === 'string'){ try{ o = JSON.parse(v); }catch{ return null; } }
+    if(!o || typeof o !== 'object') return null;
+    const arr = x => Array.isArray(x) ? x.map(y => y || '') : [];
+    return {1: arr(o['1'] ?? o[1]), 2: arr(o['2'] ?? o[2])};
+  }
+  function gtSelectRow(slot, idx, teamName, val, disabled){
+    const opts = GT_OPTS.map(([v,l]) => `<option value="${v}" ${val===v?'selected':''}>${escapeHtml(l)}</option>`).join('');
+    return `<label class="gt-goal"><span>${escapeHtml(teamName)} · goal ${idx+1}</span><select class="gt-select" data-slot="${slot}" ${disabled?'disabled':''}>${opts}</select></label>`;
+  }
+  function goalTimeSelectorsHtml(t1, t2, n1, n2, cur, disabled){
+    cur = cur || {1:[],2:[]};
+    let rows = '';
+    for(let i=0;i<n1;i++) rows += gtSelectRow('1', i, t1, (cur[1]||[])[i] || '', disabled);
+    for(let i=0;i<n2;i++) rows += gtSelectRow('2', i, t2, (cur[2]||[])[i] || '', disabled);
+    if(!rows) return '<div class="gt-hint">No goals in this scoreline — no timings to set.</div>';
+    return '<div class="gt-hint">When is each goal scored? (+3 each if correct)</div><div class="gt-goals">' + rows + '</div>';
+  }
+  function readGoalTimes(container){
+    const out = {1:[], 2:[]};
+    container.querySelectorAll('.gt-select').forEach(s => { out[s.getAttribute('data-slot')].push(s.value || ''); });
+    return out;
+  }
+  // +3 for each goal whose predicted period matches an actual goal's period for the same team.
+  function goalTimePoints(pred, result){
+    if(!result) return 0;
+    const rg = parseGT(result.goalTimes); if(!rg) return 0;
+    const pg = parseGT(pred && pred.goalTimes); if(!pg) return 0;
+    let pts = 0;
+    for(const slot of [1,2]){
+      const need = {}; (rg[slot]||[]).forEach(x => { if(x) need[x] = (need[x]||0)+1; });
+      (pg[slot]||[]).forEach(x => { if(x && need[x] > 0){ pts += 3; need[x]--; } });
+    }
+    return pts;
+  }
+  // Compact "1st, 2nd" list across both teams (for chips/tables).
+  function gtFlat(v){
+    const g = parseGT(v); if(!g) return '';
+    return [...(g[1]||[]), ...(g[2]||[])].filter(Boolean).map(x => GT_LABEL[x] || x).join(', ');
+  }
+  // "Team A: 1st, 2nd · Team B: 2nd" (for the results table).
+  function gtSummary(v, t1, t2){
+    const g = parseGT(v); if(!g) return '';
+    const fmtArr = a => (a||[]).filter(Boolean).map(x => GT_LABEL[x] || x).join(', ');
+    const p1 = fmtArr(g[1]), p2 = fmtArr(g[2]), parts = [];
+    if(p1) parts.push(escapeHtml(t1) + ': ' + escapeHtml(p1));
+    if(p2) parts.push(escapeHtml(t2) + ': ' + escapeHtml(p2));
+    return parts.join(' · ');
+  }
+  // Per-goal timing dropdowns for a prediction card, rebuilt from the entered scoreline.
+  function updateGoalTimeUI(card){
+    const zone = card.querySelector('.goal-time-zone');
+    if(!zone) return; // not a timed (QF+) match
+    const hidden = card.querySelector('.pred-goaltimes');
+    const m = db.matches.find(x => x.id === card.getAttribute('data-match-id'));
+    const s1 = card.querySelector('.pred-score1').value;
+    const s2 = card.querySelector('.pred-score2').value;
+    const disabled = card.querySelector('.pred-score1').hasAttribute('disabled');
+    if(s1 === '' || s2 === ''){ zone.innerHTML = '<div class="gt-hint">Enter both scores to set each goal’s timing.</div>'; return; }
+    const clamp = n => Math.max(0, Math.min(20, parseInt(n,10) || 0));
+    const cur = zone.querySelector('.gt-select') ? readGoalTimes(zone) : parseGT(hidden.value);
+    zone.innerHTML = goalTimeSelectorsHtml(m.team1, m.team2, clamp(s1), clamp(s2), cur, disabled);
+    hidden.value = JSON.stringify(readGoalTimes(zone));
+    zone.querySelectorAll('.gt-select').forEach(s => s.addEventListener('change', () => { hidden.value = JSON.stringify(readGoalTimes(zone)); }));
+  }
+
   // Who predicted whom for a match
   function tallyHtml(m){
     const nameOf = id => (db.players.find(x=>x.id===id)||{}).name || id;
@@ -508,9 +607,8 @@ document.addEventListener('DOMContentLoaded', function(){
     const editable = cards.filter(c => { const m = db.matches.find(x => x.id===c.getAttribute('data-match-id')); return !isLocked(m); });
     if(!editable.length){ btn.disabled = true; btn.textContent = 'No open matches'; return; }
     const allFilled = editable.every(c => c.querySelector('.pred-score1').value !== '' && c.querySelector('.pred-score2').value !== '' && c.querySelector('.pred-winner').value !== '');
-    const hasDouble = !!document.querySelector('#predictionCards .dbl-btn.sel');
-    btn.disabled = !(allFilled && hasDouble);
-    btn.textContent = !allFilled ? 'Fill all fields to save' : (!hasDouble ? 'Pick your 2× match' : (editing ? 'Update my predictions' : 'Save my predictions'));
+    btn.disabled = !allFilled;
+    btn.textContent = !allFilled ? 'Fill all fields to save' : (editing ? 'Update my predictions' : 'Save my predictions');
   }
 
   // bottom-of-page submitted / yet-to-submit lists for the selected day
@@ -589,7 +687,7 @@ document.addEventListener('DOMContentLoaded', function(){
       const resultCell = db.results.find(r=>r.matchId===m.id)?'Scored':'Pending';
       return `<tr><td>${escapeHtml(fmtDate(m.date))}</td><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td style="white-space:nowrap">${entriesCell}</td><td>${resultCell}</td></tr>`;
     }).join('') : '<tr><td colspan="4">No matches yet.</td></tr>';
-    qs('resultsBody').innerHTML = db.results.length ? db.results.map(r=>{const m=db.matches.find(x=>x.id===r.matchId);return m?`<tr><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${r.score1}-${r.score2}</td><td>${escapeHtml(r.winner)}</td></tr>`:'';}).join('') : '<tr><td colspan="3">No results yet.</td></tr>';
+    qs('resultsBody').innerHTML = db.results.length ? db.results.map(r=>{const m=db.matches.find(x=>x.id===r.matchId);return m?`<tr><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${r.score1}-${r.score2}</td><td>${escapeHtml(r.winner)}${gtSummary(r.goalTimes,m.team1,m.team2)?(' · '+gtSummary(r.goalTimes,m.team1,m.team2)):''}</td></tr>`:'';}).join('') : '<tr><td colspan="3">No results yet.</td></tr>';
 
     renderLeaderboard();
 
@@ -598,9 +696,10 @@ document.addEventListener('DOMContentLoaded', function(){
     const personRow = (p, r) => {
       const sd = scoreDetail(p, r);
       const cls = sd.points>=5?'p5':sd.points>=3?'p3':sd.points>=1?'p1':'p0';
-      const dtag = p.double?'<span class="dbl-tag">2×</span>':'';
       const pts = r ? `<span class="chip ${cls}">${sd.points}</span>` : '';
-      return `<div class="camp-person"><span class="cp-name">${escapeHtml(nameOf(p.playerId))}${dtag}</span><span class="cp-pred">${escapeHtml(p.score1)}-${escapeHtml(p.score2)}</span>${pts}</div>`;
+      const gflat = gtFlat(p.goalTimes);
+      const gtag = gflat ? `<span class="gt-tag">⏱ ${escapeHtml(gflat)}</span>` : '';
+      return `<div class="camp-person"><span class="cp-name">${escapeHtml(nameOf(p.playerId))}</span><span class="cp-pred">${escapeHtml(p.score1)}-${escapeHtml(p.score2)}</span>${gtag}${pts}</div>`;
     };
     const sortedMatches = db.matches.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     qs('insights').innerHTML = sortedMatches.length ? sortedMatches.map(m=>{
@@ -664,7 +763,7 @@ document.addEventListener('DOMContentLoaded', function(){
     tbody.innerHTML = preds.length ? preds.map(p=>{
       const m = db.matches.find(x=>x.id===p.matchId);
       const matchLabel = m ? `${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}` : '(deleted match)';
-      return `<tr><td>${escapeHtml(nameOf(p.playerId))}</td><td>${matchLabel}</td><td>${escapeHtml(p.score1)}-${escapeHtml(p.score2)} (${escapeHtml(p.winner)})</td><td style="white-space:nowrap;text-align:right"><button class="mini-btn" data-act="edit" data-id="${escapeHtml(p.id)}">Edit</button><button class="mini-btn danger" data-act="del" data-id="${escapeHtml(p.id)}">Delete</button></td></tr>`;
+      return `<tr><td>${escapeHtml(nameOf(p.playerId))}</td><td>${matchLabel}</td><td>${escapeHtml(p.score1)}-${escapeHtml(p.score2)} (${escapeHtml(p.winner)})${gtFlat(p.goalTimes)?(' · ⏱ '+escapeHtml(gtFlat(p.goalTimes))):''}</td><td style="white-space:nowrap;text-align:right"><button class="mini-btn" data-act="edit" data-id="${escapeHtml(p.id)}">Edit</button><button class="mini-btn danger" data-act="del" data-id="${escapeHtml(p.id)}">Delete</button></td></tr>`;
     }).join('') : '<tr><td colspan="4">No entries.</td></tr>';
   }
 
@@ -680,7 +779,7 @@ document.addEventListener('DOMContentLoaded', function(){
       if(map[p.playerId]){
         map[p.playerId].pts += sd.points;
         if(r) map[p.playerId].played++;
-        map[p.playerId].detail.push({match:`${m.team1} vs ${m.team2}`, date:m.date, pred:`${p.score1}-${p.score2} (${p.winner})`, doubled:!!p.double, points:sd.points, reason:sd.reason, scored:!!r});
+        map[p.playerId].detail.push({match:`${m.team1} vs ${m.team2}`, date:m.date, pred:`${p.score1}-${p.score2} (${p.winner})`, points:sd.points, reason:sd.reason, scored:!!r});
       }
     });
     return Object.values(map).sort((a,b)=>b.pts-a.pts || a.name.localeCompare(b.name));
@@ -699,8 +798,7 @@ document.addEventListener('DOMContentLoaded', function(){
       const g = i===0?'g1':i===1?'g2':i===2?'g3':'';
       const rows = r.detail.length ? r.detail.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(d=>{
         const cls = d.points>=5?'p5':d.points>=3?'p3':d.points>=1?'p1':'p0';
-        const dtag = d.doubled?'<span class="dbl-tag">2×</span>':'';
-        return `<div class="bd-row"><div><div>${escapeHtml(d.match)}${dtag}</div><div class="bd-reason">${escapeHtml(d.pred)}${d.scored?' · '+escapeHtml(d.reason):' · not played yet'}</div></div><span class="chip ${cls}">${d.scored?d.points+' pts':'—'}</span></div>`;
+        return `<div class="bd-row"><div><div>${escapeHtml(d.match)}</div><div class="bd-reason">${escapeHtml(d.pred)}${d.scored?' · '+escapeHtml(d.reason):' · not played yet'}</div></div><span class="chip ${cls}">${d.scored?d.points+' pts':'—'}</span></div>`;
       }).join('') : '<div class="bd-row"><span class="bd-reason">No predictions yet.</span></div>';
       const meId = qs('predPlayer') ? qs('predPlayer').value : '';
       return `<div class="lead-card ${r.id===meId?'me':''}"><div class="lead-item" data-acc><div class="rank ${g}">${i+1}</div><div class="lead-name">${escapeHtml(r.name)}<div class="lead-sub">${r.played} match${r.played===1?'':'es'} scored · tap for breakdown</div></div><div class="lead-pts">${r.pts}<span style="font-size:12px;color:var(--muted)"> pts</span></div></div><div class="lead-body">${rows}</div></div>`;
@@ -760,7 +858,7 @@ document.addEventListener('DOMContentLoaded', function(){
     } else {
       winner = Number(s1) > Number(s2) ? m.team1 : m.team2;
     }
-    const obj = {id:p.id, playerId:p.playerId, matchId:p.matchId, score1:s1, score2:s2, winner};
+    const obj = {id:p.id, playerId:p.playerId, matchId:p.matchId, score1:s1, score2:s2, winner, goalTimes: p.goalTimes ?? null};
     if(isOffline){ const i=db.predictions.findIndex(x=>x.id===id); db.predictions[i]=obj; renderAll(); return; }
     const {error} = await supabaseClient.from('predictions').upsert([obj]);
     if(error) return alert(error.message);
@@ -791,6 +889,8 @@ document.addEventListener('DOMContentLoaded', function(){
   qs('predPlayer').addEventListener('change', () => { editing = false; renderPredictTab(); });
   qs('predDate').addEventListener('change', renderPredictTab);
   qs('resultMatch').addEventListener('change', refreshResultWinnerSelect);
+  qs('actual1').addEventListener('input', refreshResultGoalTimeField);
+  qs('actual2').addEventListener('input', refreshResultGoalTimeField);
   qs('matchesBody').addEventListener('click', e => {
     const btn = e.target.closest('button[data-act="toggle-lock"]'); if(!btn) return;
     toggleMatchLock(btn.getAttribute('data-id'));
@@ -815,7 +915,9 @@ document.addEventListener('DOMContentLoaded', function(){
   qs('saveResult').addEventListener('click', async () => {
     const matchId=qs('resultMatch').value, score1=qs('actual1').value, score2=qs('actual2').value, winner=qs('actualWinner').value;
     if(!matchId||isBlank(score1)||isBlank(score2)||!winner) return alert('Fill all result fields');
-    const obj={matchId,score1,score2,winner};
+    const rm=db.matches.find(x=>x.id===matchId), rz=qs('resultGoalTimeZone');
+    const goalTimes=(rm && hasGoalTime(rm) && rz && rz.querySelector('.gt-select')) ? readGoalTimes(rz) : null;
+    const obj={matchId,score1,score2,winner,goalTimes};
     if(isOffline){ const i=db.results.findIndex(x=>x.matchId===matchId); i>-1?db.results[i]=obj:db.results.push(obj); renderAll(); return; }
     const {error}=await supabaseClient.from('results').upsert([obj]); if(error) return alert(error.message); await loadData();
   });
@@ -835,13 +937,11 @@ document.addEventListener('DOMContentLoaded', function(){
       const score2=card.querySelector('.pred-score2').value;
       const winner=card.querySelector('.pred-winner').value;
       if(isBlank(score1)||isBlank(score2)||!winner) return alert('Fill scores and winner for "'+m.team1+' vs '+m.team2+'" (or it is locked).');
-      const dblBtn=card.querySelector('.dbl-btn');
-      const dbl=!!(dblBtn && dblBtn.classList.contains('sel'));
       const existing=db.predictions.find(x=>x.playerId===playerId && x.matchId===matchId);
-      rows.push({id:existing?existing.id:uid('pred'),playerId,matchId,score1,score2,winner,double:dbl});
+      const goalTimes = hasGoalTime(m) ? (parseGT(card.querySelector('.pred-goaltimes')?.value) || null) : null;
+      rows.push({id:existing?existing.id:uid('pred'),playerId,matchId,score1,score2,winner,goalTimes});
     }
     if(!rows.length){ qs('saveMsg').className='note'; qs('saveMsg').textContent='All matches for this day are locked — nothing to save.'; return; }
-    if(!rows.some(r=>r.double)) return alert('Pick one match to double (2×) before saving.');
     const wasEditing = editing; editing = false;
     if(isOffline){
       rows.forEach(obj=>{ const i=db.predictions.findIndex(x=>x.playerId===obj.playerId&&x.matchId===obj.matchId); i>-1?db.predictions[i]=obj:db.predictions.push(obj); });
