@@ -1,959 +1,171 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Peruma WC Predictor</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#e9edf2;--card:#ffffff;--card2:#f4f6f9;--text:#161b22;--muted:#5b6472;--line:#dde3ea;
-  --accent:#0e7a5f;--accent2:#0b5e49;--gold:#e6bf57;--gold2:#b3892a;--soft:#e7f3ee;
-  --good:#0f9d58;--bad:#d64545;
-  --radius:16px;--shadow:0 6px 22px rgba(20,30,45,.08);
-  --serif:'Space Grotesk','Inter',system-ui,sans-serif;
-  --sans:'Inter',system-ui,-apple-system,Segoe UI,Arial,sans-serif
-}
-*{box-sizing:border-box}
-body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;background-image:radial-gradient(1100px 500px at 50% -10%,rgba(14,122,95,.10),transparent 70%)}
-.app{max-width:760px;margin:0 auto;padding:18px 14px 100px}
-header{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--text);padding:10px 4px 18px;border-bottom:1px solid var(--line);margin-bottom:16px}
-.brand{display:flex;align-items:center;gap:12px}
-#logo{height:42px;width:auto;display:block}
-header h1{font-family:var(--serif);font-weight:700;font-size:22px;margin:0;letter-spacing:.3px;color:var(--text)}
-header h1 .accent{color:var(--accent)}
-.status{font-size:11px;font-weight:700;padding:5px 11px;border-radius:999px;background:#fbe9e9;color:#b23b3b;white-space:nowrap;border:1px solid #f2d0d0}
-.status.ok{background:#e6f6ec;color:var(--good);border-color:#c5e9d2}
-.ghost{background:#fff;border:1px solid var(--line);color:var(--text);border-radius:999px;padding:8px 12px;font:inherit;font-size:14px;cursor:pointer;transition:.15s}
-.ghost:hover{border-color:var(--accent);color:var(--accent)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:14px}
-.card h2{font-family:var(--serif);font-weight:600;margin:0 0 4px;font-size:20px;letter-spacing:.2px;color:var(--text)}
-.sub{color:var(--muted);font-size:13px;margin:0 0 16px}
-button,input,select{font:inherit}
-.btn{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--text);padding:13px 16px;border-radius:12px;transition:.15s;font-weight:600}
-.btn.primary{background:linear-gradient(180deg,var(--accent),var(--accent2));border:none;color:#fff;width:100%;font-weight:800;letter-spacing:.3px}
-.btn.primary:active{transform:scale(.99)}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-label{display:grid;gap:6px;font-size:13px;color:var(--muted);font-weight:600}
-input,select{width:100%;padding:13px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--text)}
-input::placeholder{color:#9aa3b0}
-input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(14,122,95,.15)}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.pill{display:inline-block;background:var(--soft);color:var(--accent2);padding:4px 11px;border-radius:999px;font-size:12px;font-weight:800;border:1px solid #cfe6dd}
-
-/* match prediction card */
-.match{border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:12px;background:var(--card2)}
-.match.locked{background:#eef1f4;opacity:.75}
-.match-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:14px}
-.match-teams{font-family:var(--serif);font-weight:600;font-size:17px;color:var(--text)}
-.countdown{font-size:12px;font-weight:800;padding:5px 10px;border-radius:999px;background:var(--soft);color:var(--accent2);white-space:nowrap;border:1px solid #cfe6dd}
-.countdown.soon{background:#fbe9e9;color:#b23b3b;border-color:#f2d0d0}
-.countdown.closed{background:#eef1f4;color:var(--muted);border-color:var(--line)}
-.score-grid{display:grid;grid-template-columns:1fr 40px 1fr;gap:10px;align-items:end}
-.vs{display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:800;padding-bottom:14px;font-family:var(--serif)}
-.team-label{font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:700;text-align:center}
-.num{text-align:center;font-size:22px;font-weight:800;padding:14px 6px;font-family:var(--serif);background:#fff}
-.winner-row{margin-top:14px}
-.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
-.seg button{padding:12px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--text);font-weight:700;cursor:pointer;transition:.15s}
-.seg button.sel{background:linear-gradient(180deg,var(--accent),var(--accent2));border:none;color:#fff}
-.gt-row{margin-top:14px}
-.gt-hint{font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px;text-align:left}
-.gt-goals{display:grid;gap:8px}
-.gt-goal{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--text);font-weight:700}
-.gt-goal span{color:var(--muted);font-weight:600}
-.gt-goal select{width:auto;min-width:134px;padding:9px 10px}
-.gt-tag{display:inline-block;font-size:11px;font-weight:800;color:var(--accent2);background:var(--soft);border:1px solid #cfe6dd;border-radius:999px;padding:1px 7px;margin-left:6px;white-space:nowrap}
-.saved-tag{font-size:12px;font-weight:700;color:var(--good);margin-left:8px}
-.daybar{margin-top:14px;padding:12px 14px;border:1px solid #cfe6dd;border-radius:12px;background:var(--soft);font-weight:800;color:var(--accent2);font-size:14px}
-.standing{margin-top:10px;padding:12px 14px;border:1px solid #cfe6dd;border-radius:12px;background:#fff;color:var(--accent2);font-weight:700;font-size:14px}
-.winner-hint{font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px;text-align:left}
-.winner-auto{font-size:14px;font-weight:700;padding:11px 13px;border-radius:12px;background:#e6f6ec;color:var(--good);border:1px solid #c5e9d2}
-.winner-auto .auto-tag{font-size:11px;color:var(--muted);font-weight:600;margin-left:6px}
-.pred-tally{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:grid;gap:5px}
-.tally-line{font-size:13px;color:var(--text);line-height:1.4}
-.tally-team{font-weight:800;color:var(--accent);margin-right:6px}
-.tally-empty{color:var(--muted)}
-
-/* leaderboard */
-.lead{display:grid;gap:10px}
-.lead-item{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card2)}
-.rank{font-family:var(--serif);font-weight:700;font-size:17px;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eef1f4;color:var(--muted);flex:0 0 auto;border:1px solid var(--line)}
-.rank.g1{background:linear-gradient(180deg,var(--gold),var(--gold2));color:#3a2a05;border:none}
-.rank.g2{background:#d7dbe0;color:#3a3f47;border:none}
-.rank.g3{background:#e7c9a6;color:#5a3b1a;border:none}
-.lead-name{font-weight:700;flex:1;font-size:15px;color:var(--text)}
-.lead-pts{font-family:var(--serif);font-weight:700;color:var(--accent);font-size:22px}
-.lead-sub{font-size:12px;color:var(--muted);font-weight:500;margin-top:2px}
-.lead-card{border:1px solid var(--line);border-radius:14px;background:var(--card2);overflow:hidden}
-.lead-card .lead-item{border:none;border-radius:0;background:transparent;cursor:pointer}
-.lead-card.me{border-color:var(--accent);box-shadow:0 0 0 2px rgba(14,122,95,.15)}
-.lead-body{display:none;padding:0 16px 14px}
-.lead-card.open .lead-body{display:block}
-.edit-btn{margin-top:10px;border:1px solid var(--accent);background:#fff;color:var(--accent);padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer}
-.mini-btn{border:1px solid var(--line);background:#fff;color:var(--text);padding:7px 11px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;margin-left:4px}
-.mini-btn.danger{border-color:#f2d0d0;color:#b23b3b}
-.subtabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
-.subtab{background:#fff;border:1px solid var(--line);color:var(--muted);padding:7px 13px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s}
-.subtab.active{background:var(--soft);border-color:#cfe6dd;color:var(--accent2)}
-.form-block{margin:2px 0 12px;display:grid;gap:5px}
-.form-line{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);flex-wrap:wrap}
-.form-team{font-weight:700;color:var(--text);min-width:96px}
-.frm{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;font-size:11px;font-weight:800;color:#fff}
-.frm.W{background:var(--good)}.frm.D{background:#98a0ad}.frm.L{background:var(--bad)}
-
-/* pending */
-.pending-wrap{display:flex;flex-wrap:wrap;gap:8px}
-.pend-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;background:#fbf1e2;color:#a86a1e;border:1px solid #f0dcbf;font-size:13px;font-weight:700}
-.pend-chip.done{background:#e6f6ec;color:var(--good);border-color:#c5e9d2}
-.pend-day{font-weight:700;font-size:13px;color:var(--muted);margin:14px 0 8px}
-.pend-day:first-child{margin-top:0}
-
-/* breakdown */
-.bd-player{border:1px solid var(--line);border-radius:14px;margin-top:12px;overflow:hidden;background:var(--card2)}
-.bd-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer}
-.bd-head strong{font-family:var(--serif);font-weight:600;font-size:16px;color:var(--text)}
-.bd-body{display:none;padding:4px 16px 14px}
-.bd-player.open .bd-body{display:block}
-.bd-row{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);font-size:14px}
-.bd-row:last-child{border-bottom:none}
-.bd-reason{font-size:12px;color:var(--muted);margin-top:2px}
-.chip{font-weight:800;padding:3px 10px;border-radius:999px;font-size:13px;white-space:nowrap}
-.chip.p5{background:#e6f6ec;color:var(--good)}.chip.p3{background:#e4eefb;color:#2f6bd0}.chip.p1{background:#fbf3dd;color:var(--gold2)}.chip.p0{background:#f3e5e5;color:#b23b3b}
-
-/* insights camps */
-.ins-meta{font-size:12px;color:var(--muted);margin:2px 0 10px}
-.camps{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.camp{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
-.camp-win{border-color:#c5e9d2;background:#eef8f1}
-.camp-lose{opacity:.6}
-.camp-head{font-family:var(--serif);font-weight:600;font-size:14px;color:var(--accent);display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
-.camp-count{font-size:11px;font-weight:800;color:var(--muted);background:#f4f6f9;border:1px solid var(--line);border-radius:999px;padding:1px 8px}
-.camp-tag{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--good);background:#e6f6ec;border:1px solid #c5e9d2;border-radius:999px;padding:2px 8px}
-.camp-person{display:flex;align-items:center;gap:6px;padding:5px 0;font-size:13px;border-bottom:1px solid #eef1f4}
-.camp-person:last-child{border-bottom:none}
-.cp-name{flex:1;font-weight:600;color:var(--text)}
-.cp-pred{color:var(--muted);font-variant-numeric:tabular-nums;font-weight:700}
-.camp-person .chip{padding:1px 7px;font-size:11px}
-.camp-empty{font-size:12px;color:var(--muted);padding:4px 0}
-
-.empty{padding:20px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px;background:var(--card2)}
-.note{font-size:13px;color:var(--muted);line-height:1.5}
-.note.success{color:var(--good);font-weight:800;font-size:14px}
-.table{overflow:auto}
-table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{text-align:left;padding:11px 8px;border-bottom:1px solid var(--line);color:var(--text)}
-th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.6px}
-.row4{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-details summary{cursor:pointer;font-weight:700;color:var(--accent)}
-.hidden{display:none !important}
-
-/* bottom tab bar (mobile-first) */
-.tabbar{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-top:1px solid var(--line);display:flex;z-index:30;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
-.tabbar button{flex:1;background:none;border:none;padding:13px 4px;border-radius:10px;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;transition:.15s;letter-spacing:.2px}
-.tabbar button.active{color:var(--accent);background:var(--soft);font-weight:700}
-.view{display:none}
-.view.active{display:block}
-@media(min-width:760px){.tabbar{max-width:760px;margin:0 auto;border-radius:16px 16px 0 0}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Peruma WC Predictor</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#e9edf2;--card:#fff;--card2:#f4f6f9;--text:#161b22;--muted:#5b6472;--line:#dde3ea;--accent:#0e7a5f;--accent2:#0b5e49;--soft:#e7f3ee;--good:#0f9d58;--bad:#d64545;--gold:#e6bf57;--radius:16px;--shadow:0 6px 22px rgba(20,30,45,.08);--serif:'Space Grotesk','Inter',sans-serif;--sans:'Inter',system-ui,sans-serif}
+    *{box-sizing:border-box}body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--text);background-image:radial-gradient(1100px 500px at 50% -10%,rgba(14,122,95,.1),transparent 70%)}
+    .app{max-width:760px;margin:auto;padding:18px 14px 100px}header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 4px 18px;border-bottom:1px solid var(--line);margin-bottom:16px}h1,h2{font-family:var(--serif)}h1{font-size:22px;margin:0}.accent{color:var(--accent)}
+    .status{font-size:11px;font-weight:700;padding:5px 11px;border-radius:999px;background:#fbe9e9;color:#b23b3b;border:1px solid #f2d0d0}.status.ok{background:#e6f6ec;color:var(--good);border-color:#c5e9d2}.ghost,.mini-btn{background:#fff;border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 11px;font:inherit;cursor:pointer}.mini-btn{font-size:12px;font-weight:700}.mini-btn.danger{border-color:#f2d0d0;color:#b23b3b}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:14px}.card h2{font-size:20px;margin:0 0 4px}.sub,.note{color:var(--muted);font-size:13px;line-height:1.5}.sub{margin:0 0 16px}.note.success{color:var(--good);font-weight:800}
+    label{display:grid;gap:6px;font-size:13px;color:var(--muted);font-weight:600}button,input,select{font:inherit}input,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--text)}input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(14,122,95,.15)}button:disabled,input:disabled,select:disabled{opacity:.55;cursor:not-allowed}
+    .btn{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--text);padding:13px 16px;border-radius:12px;font-weight:700}.btn.primary{background:linear-gradient(180deg,var(--accent),var(--accent2));border:none;color:#fff;width:100%}.row2,.row4{display:grid;grid-template-columns:1fr 1fr;gap:10px}.pill{display:inline-block;background:var(--soft);color:var(--accent2);padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800;border:1px solid #cfe6dd}
+    .match{border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:12px;background:var(--card2)}.match.locked{opacity:.7}.match-head,.flex{display:flex;justify-content:space-between;align-items:center;gap:8px}.match-teams{font:600 17px var(--serif)}.countdown{font-size:12px;font-weight:800;padding:5px 10px;border-radius:999px;background:var(--soft);color:var(--accent2)}.countdown.closed{background:#eef1f4;color:var(--muted)}
+    .score-grid{display:grid;grid-template-columns:1fr 40px 1fr;gap:10px;align-items:end;margin-top:14px}.team-label{text-align:center;font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px}.num{text-align:center;font:800 22px var(--serif);padding:14px 6px}.vs{text-align:center;padding-bottom:14px;color:var(--muted);font-weight:800}.winner-zone,.goal-time-zone{margin-top:14px}.winner-auto{font-weight:700;padding:11px 13px;border-radius:12px;background:#e6f6ec;color:var(--good);border:1px solid #c5e9d2}.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}.seg button{padding:11px;border-radius:10px;border:1px solid var(--line);background:#fff;font-weight:700}.seg button.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .gt-goals{display:grid;gap:8px}.gt-goal{display:flex;align-items:center;justify-content:space-between;gap:10px}.gt-goal select{width:auto;min-width:130px;padding:8px}.tally{border-top:1px solid var(--line);margin-top:12px;padding-top:10px;font-size:12px;color:var(--muted)}.daybar,.standing{margin-top:14px;padding:12px 14px;border:1px solid #cfe6dd;border-radius:12px;background:var(--soft);font-weight:800;color:var(--accent2);font-size:14px}.standing{background:#fff}
+    .subtabs,.pending-wrap{display:flex;flex-wrap:wrap;gap:8px}.subtabs{margin-bottom:14px}.subtab{background:#fff;border:1px solid var(--line);color:var(--muted);padding:7px 13px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer}.subtab.active{background:var(--soft);border-color:#cfe6dd;color:var(--accent2)}.lead{display:grid;gap:10px}.lead-card{border:1px solid var(--line);border-radius:14px;background:var(--card2);overflow:hidden}.lead-item{display:flex;align-items:center;gap:14px;padding:14px 16px;cursor:pointer}.rank{font:700 17px var(--serif);width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#eef1f4}.rank.g1{background:linear-gradient(180deg,var(--gold),#b3892a);color:#3a2a05}.rank.g2{background:#d7dbe0}.rank.g3{background:#e7c9a6}.lead-name{font-weight:700;flex:1}.lead-sub{font-size:12px;color:var(--muted);margin-top:2px}.lead-pts{font:700 22px var(--serif);color:var(--accent)}.lead-body{display:none;padding:0 16px 14px}.lead-card.open .lead-body{display:block}.bd-row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}.bd-reason{font-size:12px;color:var(--muted);margin-top:3px}.chip{font-weight:800;padding:3px 9px;border-radius:999px;font-size:12px;white-space:nowrap;background:#e6f6ec;color:var(--good)}
+    .pend-chip{padding:7px 12px;border-radius:999px;background:#fbf1e2;color:#a86a1e;border:1px solid #f0dcbf;font-size:13px;font-weight:700}.pend-chip.done{background:#e6f6ec;color:var(--good);border-color:#c5e9d2}.pend-day{font-weight:700;font-size:13px;color:var(--muted);margin:14px 0 8px}.empty{padding:20px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px;background:var(--card2)}.table{overflow:auto}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-size:11px;text-transform:uppercase}.hidden{display:none!important}.view{display:none}.view.active{display:block}
+    .tabbar{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-top:1px solid var(--line);display:flex;z-index:30;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}.tabbar button{flex:1;background:none;border:none;padding:13px 4px;border-radius:10px;color:var(--muted);font-size:13px;font-weight:600}.tabbar button.active{color:var(--accent);background:var(--soft);font-weight:700}@media(max-width:520px){.row2,.row4{grid-template-columns:1fr}.app{padding-left:10px;padding-right:10px}}@media(min-width:760px){.tabbar{max-width:760px;margin:auto;border-radius:16px 16px 0 0}}
+  </style>
 </head>
 <body>
 <div class="app">
-  <header>
-    <h1>Peruma <span class="accent">WC</span> Predictor</h1>
-    <div style="display:flex;gap:8px;align-items:center">
-      <span class="status" id="apiStatus">Loading…</span>
-      <button class="ghost" id="btnReload">↻</button>
-    </div>
-  </header>
+  <header><h1>Peruma <span class="accent">WC</span> Predictor</h1><div class="flex"><span class="status" id="apiStatus">Loading…</span><button class="ghost" id="btnReload">↻</button></div></header>
 
-  <!-- PREDICT -->
   <section class="view active" id="view-predict">
-    <div class="card">
-      <h2>Make your predictions</h2>
-      <p class="sub">Predictions are open for the current match day only. Pick your name and fill every match.</p>
-      <label>I am…<select id="predPlayer"></select></label>
-      <div class="daybar" id="activeDayBar">Loading match day…</div>
-      <div class="standing hidden" id="myStanding"></div>
-      <input type="hidden" id="predDate">
-    </div>
-    <div id="predictionCards"></div>
-    <button class="btn primary" id="saveAllPredictions" style="margin-top:4px">Save my predictions</button>
-    <p class="note" id="saveMsg" style="text-align:center;margin-top:10px"></p>
-    <div class="card" id="submitStatusCard">
-      <h2>Submission status</h2>
-      <p class="sub" id="submitStatusSub">Select a match day to see who has submitted.</p>
-      <div id="submitStatus"></div>
-    </div>
+    <div class="card"><h2>Make your predictions</h2><p class="sub">Predictions are open for the current match day only.</p><label>I am…<select id="predPlayer"></select></label><div class="daybar" id="activeDayBar">Loading match day…</div><div class="standing hidden" id="myStanding"></div><input type="hidden" id="predDate"></div>
+    <div id="predictionCards"></div><button class="btn primary" id="saveAllPredictions">Save my predictions</button><p class="note" id="saveMsg" style="text-align:center"></p>
+    <div class="card"><h2>Submission status</h2><p class="sub" id="submitStatusSub">See who has submitted.</p><div id="submitStatus"></div></div>
+    <div class="card" id="finalFourCard"><h2>Predict the Final Four</h2><p class="sub">Rank France, Spain, Argentina and England. Exact positions earn 20, 15, 10 and 5 points.</p><div class="row4"><label>1st place<select id="ffPred1" class="ff-pred-select"></select></label><label>2nd place<select id="ffPred2" class="ff-pred-select"></select></label><label>3rd place<select id="ffPred3" class="ff-pred-select"></select></label><label>4th place<select id="ffPred4" class="ff-pred-select"></select></label></div><button class="btn primary" id="saveFinalFour" style="margin-top:12px">Save Final Four prediction</button><p class="note" id="finalFourMsg" style="text-align:center"></p></div>
   </section>
 
-  <!-- LEADERBOARD -->
-  <section class="view" id="view-leaderboard">
-    <div class="card">
-      <h2>Leaderboard</h2>
-      <p class="sub">Rankings per knockout round.</p>
-      <div class="subtabs" id="roundTabs"></div>
-      <div class="lead" id="leaderboard"></div>
-    </div>
-    <div class="card">
-      <h2>Pending predictions</h2>
-      <p class="sub">Who still needs to submit for matches that are open.</p>
-      <div id="pending"></div>
-    </div>
-  </section>
+  <section class="view" id="view-leaderboard"><div class="card"><h2>Leaderboard</h2><p class="sub">Rankings by knockout round, plus the Final Four bonus.</p><div class="subtabs" id="roundTabs"></div><div class="lead" id="leaderboard"></div></div><div class="card"><h2>Pending predictions</h2><div id="pending"></div></div></section>
+  <section class="view" id="view-insights"><div class="card"><h2>Insights</h2><p class="sub">Predictions by match.</p><div id="insights"></div></div></section>
 
-  <!-- INSIGHTS -->
-  <section class="view" id="view-insights">
-    <div class="card">
-      <h2>Insights</h2>
-      <p class="sub">Match by match: who predicted what, and who scored once the result is in.</p>
-      <div id="insights"></div>
-    </div>
-  </section>
-
-  <!-- ADMIN -->
   <section class="view" id="view-admin">
-    <div class="card" id="adminGate">
-      <h2>Admin access</h2>
-      <p class="sub">Enter the passcode to manage matches and results.</p>
-      <label>Passcode<input type="password" id="adminPass" placeholder="••••" autocomplete="off"></label>
-      <button class="btn primary" id="adminUnlock" style="margin-top:12px">Unlock</button>
-      <p class="note" id="adminMsg" style="text-align:center;margin-top:10px"></p>
-    </div>
+    <div class="card" id="adminGate"><h2>Admin access</h2><p class="sub">Enter the passcode to manage matches and results.</p><label>Passcode<input type="password" id="adminPass" autocomplete="off"></label><button class="btn primary" id="adminUnlock" style="margin-top:12px">Unlock</button><p class="note" id="adminMsg"></p></div>
     <div id="adminContent" class="hidden">
-    <div class="card">
-      <h2>Admin · Matches</h2>
-      <p class="sub">Add the matches players can predict. New matches open for entries by default — use the Open/Close button to control when predictions lock.</p>
-      <div class="row4">
-        <label>Date<input type="date" id="matchDate"></label>
-        <label>Round<select id="matchRound"></select></label>
-        <label>Team 1<input id="team1" placeholder="Brazil"></label>
-        <label>Team 2<input id="team2" placeholder="France"></label>
-      </div>
-      <button class="btn primary" id="addMatch" style="margin-top:12px">Add match</button>
-      <div class="table" style="margin-top:14px">
-        <table><thead><tr><th>Date</th><th>Match</th><th>Entries</th><th>Result</th></tr></thead>
-        <tbody id="matchesBody"></tbody></table>
-      </div>
+      <div class="card"><h2>Admin · Matches</h2><div class="row4"><label>Date<input type="date" id="matchDate"></label><label>Round<select id="matchRound"></select></label><label>Team 1<input id="team1"></label><label>Team 2<input id="team2"></label></div><button class="btn primary" id="addMatch" style="margin-top:12px">Add match</button><div class="table" style="margin-top:14px"><table><thead><tr><th>Date</th><th>Match</th><th>Entries</th><th>Result</th></tr></thead><tbody id="matchesBody"></tbody></table></div></div>
+      <div class="card"><h2>Admin · Results</h2><p class="sub">Enter the 90-minute score and overall winner.</p><div class="row4"><label>Match<select id="resultMatch"></select></label><label>Winner<select id="actualWinner"></select></label><label>Score 1<input id="actual1" type="number" min="0"></label><label>Score 2<input id="actual2" type="number" min="0"></label></div><div id="resultGoalTimeWrap" class="hidden" style="margin-top:12px"><div id="resultGoalTimeZone"></div><p class="note">Players earn +1 for every correctly timed goal.</p></div><button class="btn primary" id="saveResult" style="margin-top:12px">Save result</button><div class="table" style="margin-top:14px"><table><thead><tr><th>Match</th><th>90 min</th><th>Winner</th></tr></thead><tbody id="resultsBody"></tbody></table></div></div>
+      <div class="card"><h2>Admin · Final Four</h2><p class="sub">Lock predictions and enter the official finishing order.</p><div class="flex" style="justify-content:flex-start;margin-bottom:16px"><span class="pill" id="finalFourLockStatus">Predictions open</span><button class="mini-btn danger" id="toggleFinalFourLock">Lock predictions</button></div><div class="row4"><label>Official 1st<select id="ffOfficial1"></select></label><label>Official 2nd<select id="ffOfficial2"></select></label><label>Official 3rd<select id="ffOfficial3"></select></label><label>Official 4th<select id="ffOfficial4"></select></label></div><button class="btn primary" id="saveFinalFourResult" style="margin-top:12px">Save official positions</button><p class="note" id="finalFourAdminMsg"></p><div class="table"><table><thead><tr><th>Player</th><th>Prediction</th><th>Points</th><th></th></tr></thead><tbody id="finalFourEntriesBody"></tbody></table></div></div>
+      <div class="card"><h2>Manage match entries</h2><div class="row2"><label>Player<select id="entryPlayerFilter"><option value="">All players</option></select></label><label>Match<select id="entryMatchFilter"><option value="">All matches</option></select></label></div><div class="table"><table><thead><tr><th>Player</th><th>Match</th><th>Prediction</th><th></th></tr></thead><tbody id="entriesBody"></tbody></table></div></div>
+      <div class="card"><h2>Rules</h2><p class="note">Decisive result: exact score = <strong>5</strong>; winner plus one exact team score = <strong>3</strong>; winner only = <strong>1</strong>.<br>Draw in 90: draw plus correct winner = <strong>5</strong>; predicted draw = <strong>3</strong>; winner only = <strong>1</strong>.<br>Goal timing from Quarter Final onwards = <strong>+1</strong> per correctly timed goal.<br>Final Four exact positions: 1st = <strong>20</strong>, 2nd = <strong>15</strong>, 3rd = <strong>10</strong>, 4th = <strong>5</strong>.</p></div>
     </div>
-    <div class="card">
-      <h2>Admin · Results</h2>
-      <p class="sub">Enter the 90-minute score and the winner to award points.</p>
-      <div class="row4">
-        <label>Match<select id="resultMatch"></select></label>
-        <label>Winner<select id="actualWinner"></select></label>
-        <label>Score 1<input id="actual1" type="number" min="0"></label>
-        <label>Score 2<input id="actual2" type="number" min="0"></label>
-      </div>
-      <div id="resultGoalTimeWrap" class="hidden" style="margin-top:12px">
-        <div id="resultGoalTimeZone"></div>
-        <p class="note" style="margin:8px 0 0">Set the period each goal was scored in. Players earn +3 for every goal they timed correctly (matched per team).</p>
-      </div>
-      <button class="btn primary" id="saveResult" style="margin-top:12px">Save result</button>
-      <div class="table" style="margin-top:14px">
-        <table><thead><tr><th>Match</th><th>90 min</th><th>Winner</th></tr></thead>
-        <tbody id="resultsBody"></tbody></table>
-      </div>
-    </div>
-    <div class="card">
-      <h2>Manage entries</h2>
-      <p class="sub">Edit or delete individual predictions — useful for removing duplicates.</p>
-      <div class="row2">
-        <label>Filter by player<select id="entryPlayerFilter"><option value="">All players</option></select></label>
-        <label>Filter by match<select id="entryMatchFilter"><option value="">All matches</option></select></label>
-      </div>
-      <div class="table" style="margin-top:14px">
-        <table><thead><tr><th>Player</th><th>Match</th><th>Prediction</th><th></th></tr></thead>
-        <tbody id="entriesBody"></tbody></table>
-      </div>
-    </div>
-    <div class="card">
-      <h2>Rules</h2>
-      <p class="note">Decisive result: Winner + exact score = <strong>5</strong> · Winner + one exact score = <strong>3</strong> · Winner only = <strong>1</strong>.<br>Draw in 90 (to penalties): Predicted a draw + correct winner = <strong>5</strong> · Predicted a draw = <strong>3</strong> · Winner only (no draw predicted) = <strong>1</strong>.<br>Goal-timing bonus (Quarter Final onwards): for each goal in your predicted scoreline, pick the period it is scored in (1st half / 2nd half / extra time). Earn <strong>+3</strong> for each goal whose period you get right, matched per team. Optional, and awarded independently of the score.</p>
-    </div>
-    </div><!-- /adminContent -->
   </section>
 
-  <!-- SETUP -->
-  <section class="view" id="view-setup">
-    <div class="card">
-      <h2>Database connection</h2>
-      <p class="sub">Already pre-connected — no setup needed. These fields only let you override the built-in database for testing.</p>
-      <label style="margin-bottom:12px">Supabase URL<input id="supaUrlInput" placeholder="https://xyz.supabase.co"></label>
-      <label style="margin-bottom:12px">Publishable Key<input id="supaKeyInput" placeholder="sb_publishable_…"></label>
-      <button class="btn primary" id="saveSupaBtn">Connect database</button>
-    </div>
-  </section>
+  <section class="view" id="view-setup"><div class="card"><h2>Database connection</h2><p class="sub">The built-in database is used unless overridden here.</p><label>Supabase URL<input id="supaUrlInput"></label><label style="margin-top:12px">Publishable key<input id="supaKeyInput"></label><button class="btn primary" id="saveSupaBtn" style="margin-top:12px">Connect database</button></div></section>
 </div>
-
-<!-- bottom tab bar -->
-<nav class="tabbar">
-  <button class="tab active" data-target="view-predict">Predict</button>
-  <button class="tab" data-target="view-leaderboard">Leaders</button>
-  <button class="tab" data-target="view-insights">Insights</button>
-  <button class="tab" data-target="view-admin">Admin</button>
-  <button class="tab" data-target="view-setup">Setup</button>
-</nav>
-</body>
-</html>
+<nav class="tabbar"><button class="tab active" data-target="view-predict">Predict</button><button class="tab" data-target="view-leaderboard">Leaders</button><button class="tab" data-target="view-insights">Insights</button><button class="tab" data-target="view-admin">Admin</button><button class="tab" data-target="view-setup">Setup</button></nav>
 <script>
-document.addEventListener('DOMContentLoaded', function(){
+document.addEventListener('DOMContentLoaded', () => {
   const qs = id => document.getElementById(id);
-  const setStatus = (msg, ok) => { const el=qs('apiStatus'); el.textContent=msg; el.classList.toggle('ok', !!ok); };
-  const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const uid = p => p + '-' + Math.random().toString(36).slice(2,8);
-  const isBlank = v => v === '' || v === null || v === undefined;
-  const fmtDate = s => { if(!s) return ''; const d = new Date(s + 'T12:00:00'); return isNaN(d) ? s : d.toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short'}); };
-  const ordinal = n => ({1:'1st',2:'2nd',3:'3rd',4:'4th'}[n] || (n+'th'));
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  const uid = prefix => `${prefix}-${Math.random().toString(36).slice(2,10)}`;
+  const blank = value => value === '' || value === null || value === undefined;
+  const fmtDate = value => value ? new Date(`${value}T12:00:00`).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}) : '';
+  const setStatus = (text, ok) => { qs('apiStatus').textContent=text; qs('apiStatus').classList.toggle('ok',!!ok); };
 
-  // ---- tab bar ----
-  const tabs = document.querySelectorAll('.tabbar .tab');
-  tabs.forEach(btn => btn.addEventListener('click', () => {
-    tabs.forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    qs(btn.getAttribute('data-target')).classList.add('active');
-  }));
-
-  // ---- admin passcode gate ----
-  const ADMIN_PASS = 'pass';
-  const applyAdminLock = () => {
-    const unlocked = sessionStorage.getItem('wc-admin') === '1';
-    qs('adminGate').classList.toggle('hidden', unlocked);
-    qs('adminContent').classList.toggle('hidden', !unlocked);
-  };
-  const tryUnlock = () => {
-    if(qs('adminPass').value === ADMIN_PASS){
-      sessionStorage.setItem('wc-admin','1');
-      qs('adminMsg').textContent = '';
-      qs('adminPass').value = '';
-      applyAdminLock();
-    } else {
-      qs('adminMsg').textContent = 'Incorrect passcode.';
-    }
-  };
-  qs('adminUnlock').addEventListener('click', tryUnlock);
-  qs('adminPass').addEventListener('keydown', e => { if(e.key === 'Enter') tryUnlock(); });
-  applyAdminLock();
-
-  // ---- data ----
-  let db = {players:[{id:'Eldho',name:'Eldho'},{id:'Irene',name:'Irene'},{id:'Lorraine',name:'Lorraine'},{id:'Mini',name:'Mini'},{id:'Saju',name:'Saju'},{id:'Sameera',name:'Sameera'},{id:'Suraj',name:'Suraj'},{id:'Vaheeda',name:'Vaheeda'},{id:'Vassim',name:'Vassim'}],matches:[],predictions:[],results:[]};
-  let supabaseClient = null, isOffline = true;
-  let editing = false; // true when a submitted player has chosen to edit their day
+  const PLAYERS = ['Eldho','Irene','Lorraine','Mini','Saju','Sameera','Suraj','Vaheeda','Vassim'].map(name => ({id:name,name}));
   const ROUNDS = ['Round of 32','Round of 16','Quarter Final','Semi Final','3rd Place','Final'];
   const ADD_ROUNDS = ['Round of 16','Quarter Final','Semi Final','3rd Place','Final'];
-  const roundOf = m => (m && m.round) ? m.round : 'Round of 32';
-  // Goal-time bonus (+3 for the correct period of the first goal) applies from the
-  // Quarter Final onwards, where there is only one match a day.
   const TIMED_ROUNDS = ['Quarter Final','Semi Final','3rd Place','Final'];
-  const hasGoalTime = m => TIMED_ROUNDS.includes(roundOf(m));
-  const GT_LABEL = {FH:'1st half', SH:'2nd half', ET:'Extra time'};
   const GT_OPTS = [['','—'],['FH','1st half'],['SH','2nd half'],['ET','Extra time']];
-  let leaderRound = 'all';
+  const GT_LABEL = {FH:'1st half',SH:'2nd half',ET:'Extra time'};
+  const FF_TEAMS = ['France','Spain','Argentina','England'];
+  const FF_POINTS = [20,15,10,5];
+  const FF_LABELS = ['1st','2nd','3rd','4th'];
+  const FF_FIELDS = ['first_team','second_team','third_team','fourth_team'];
+  const FF_OFFICIAL_FIELDS = ['official_first','official_second','official_third','official_fourth'];
+  const DEFAULT_FF = {id:'main',locked:false,official_first:null,official_second:null,official_third:null,official_fourth:null};
+  const DEFAULTS = {url:'https://kjarkdiwfzalvjewohdd.supabase.co',key:'sb_publishable_dk2Nv_LXHrne21OYvS4JYw_efl-qyiZ'};
   const STORAGE_KEY = 'wc-tracker-creds';
-  // Built-in defaults so every device/browser connects automatically with no setup.
-  // The publishable (anon) key is safe to ship in the page — it is protected by Supabase Row Level Security.
-  const DEFAULTS = { url:'https://kjarkdiwfzalvjewohdd.supabase.co', key:'sb_publishable_dk2Nv_LXHrne21OYvS4JYw_efl-qyiZ' };
   const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-  const cfg = { url: stored.url || DEFAULTS.url, key: stored.key || DEFAULTS.key };
-  qs('supaUrlInput').value = cfg.url || '';
-  qs('supaKeyInput').value = cfg.key || '';
+  const cfg = {url:stored.url||DEFAULTS.url,key:stored.key||DEFAULTS.key};
+  let db = {players:PLAYERS,matches:[],predictions:[],results:[],finalFourPredictions:[],finalFourSettings:{...DEFAULT_FF}};
+  let client = null, offline = true, editing = false, leaderRound = 'all';
 
-  // ---- deadline helpers ----
-  // Entries are opened/closed MANUALLY by an admin per match.
-  // m.locked === true  => entries closed (predictions locked).
-  const isLocked = m => !!(m && m.locked);
-  const entryStatus = m => isLocked(m) ? {txt:'Closed', cls:'closed'} : {txt:'Open', cls:''};
+  const roundOf = match => match?.round || 'Round of 32';
+  const timed = match => TIMED_ROUNDS.includes(roundOf(match));
+  const locked = match => !!match?.locked;
+  const nameOf = id => db.players.find(player => player.id===id)?.name || id;
+  const parseGT = value => { if(!value)return null; try{const data=typeof value==='string'?JSON.parse(value):value;return data&&typeof data==='object'?{1:Array.isArray(data[1])?data[1]:[],2:Array.isArray(data[2])?data[2]:[]}:null;}catch{return null;} };
+  const readGT = container => {const out={1:[],2:[]};container.querySelectorAll('.gt-select').forEach(select=>out[select.dataset.slot].push(select.value||''));return out;};
+  const gtOptions = selected => GT_OPTS.map(([value,label])=>`<option value="${value}" ${value===selected?'selected':''}>${label}</option>`).join('');
+  function gtHtml(team1,team2,n1,n2,current={},disabled=false){let html='';[...[...Array(n1)].map((_,i)=>[1,team1,i]),...[...Array(n2)].map((_,i)=>[2,team2,i])].forEach(([slot,team,index])=>{html+=`<label class="gt-goal"><span>${esc(team)} · goal ${index+1}</span><select class="gt-select" data-slot="${slot}" ${disabled?'disabled':''}>${gtOptions((current[slot]||[])[index]||'')}</select></label>`;});return html?`<div class="note">When is each goal scored? (+1 each if correct)</div><div class="gt-goals">${html}</div>`:'<div class="note">No goals in this scoreline.</div>';}
 
-  // ---- scoring (with reasons) ----
-  function baseScore(pred, result){
-    if(!result) return {points:0, reason:'Match not scored yet'};
-    if(!pred || isBlank(pred.score1) || isBlank(pred.score2) || !pred.winner) return {points:0, reason:'No prediction made'};
-    const ps1=+pred.score1, ps2=+pred.score2, as1=+result.score1, as2=+result.score2;
-    const predDraw = ps1===ps2;            // player predicted a draw in 90
-    const actualDraw = as1===as2;          // match ended level in 90 (went to pens)
-    const exact = ps1===as1 && ps2===as2;
-    const oneTeam = ps1===as1 || ps2===as2;
-    const correctWinner = pred.winner===result.winner;
-    if(actualDraw){
-      if(predDraw && correctWinner) return {points:5, reason:'Predicted the draw + correct winner'};
-      if(predDraw)                  return {points:3, reason:'Predicted the draw'};
-      if(correctWinner)             return {points:1, reason:'Winner only'};
-      return {points:0, reason:'Wrong call'};
-    }
-    // decisive result (a team won in 90)
-    if(exact)                       return {points:5, reason:'Winner + exact score'};
-    if(correctWinner && oneTeam)    return {points:3, reason:'Winner + one exact score'};
-    if(correctWinner)               return {points:1, reason:'Winner only'};
-    return {points:0, reason:'Wrong call'};
+  function baseScore(pred,result){
+    if(!result)return {points:0,reason:'Match not scored yet'};
+    if(!pred||blank(pred.score1)||blank(pred.score2)||!pred.winner)return {points:0,reason:'No prediction'};
+    const p1=+pred.score1,p2=+pred.score2,a1=+result.score1,a2=+result.score2,pDraw=p1===p2,aDraw=a1===a2,exact=p1===a1&&p2===a2,one=p1===a1||p2===a2,win=pred.winner===result.winner;
+    if(aDraw){if(pDraw&&win)return {points:5,reason:'Draw + correct winner'};if(pDraw)return {points:3,reason:'Predicted draw'};if(win)return {points:1,reason:'Winner only'};return {points:0,reason:'Wrong call'};}
+    if(exact)return {points:5,reason:'Exact score'};if(win&&one)return {points:3,reason:'Winner + one exact score'};if(win)return {points:1,reason:'Winner only'};return {points:0,reason:'Wrong call'};
   }
-  // scoreDetail = base score + the goal-timing bonus (+3 per correctly-timed goal, per team).
-  function scoreDetail(pred, result){
-    const b = baseScore(pred, result);
-    let points = b.points, reason = b.reason;
-    const gt = goalTimePoints(pred, result);
-    if(gt > 0){ points += gt; reason += ` · +${gt} goal timing`; }
-    return {points, reason};
+  function goalTimePoints(pred,result){const pg=parseGT(pred?.goalTimes),rg=parseGT(result?.goalTimes);if(!pg||!rg)return 0;let points=0;[1,2].forEach(slot=>{const remaining={};(rg[slot]||[]).forEach(period=>{if(period)remaining[period]=(remaining[period]||0)+1;});(pg[slot]||[]).forEach(period=>{if(period&&remaining[period]>0){points+=1;remaining[period]--;}});});return points;}
+  function scoreDetail(pred,result){const base=baseScore(pred,result),bonus=goalTimePoints(pred,result);return {points:base.points+bonus,reason:base.reason+(bonus?` · +${bonus} goal timing`:'')};}
+
+  const ffPredOrder = pred => pred ? FF_FIELDS.map(field=>pred[field]||'') : ['','','',''];
+  const ffOfficialOrder = () => FF_OFFICIAL_FIELDS.map(field=>db.finalFourSettings?.[field]||'');
+  const validFF = order => order.length===4&&order.every(team=>FF_TEAMS.includes(team))&&new Set(order).size===4;
+  const ffOptions = selected => '<option value="">Select team</option>'+FF_TEAMS.map(team=>`<option value="${team}" ${team===selected?'selected':''}>${team}</option>`).join('');
+  function ffScore(pred){const official=ffOfficialOrder(),prediction=ffPredOrder(pred);if(!validFF(official))return {points:0,scored:false,reason:'Official positions not entered'};if(!validFF(prediction))return {points:0,scored:true,reason:'No valid prediction'};let points=0;const hits=[];prediction.forEach((team,index)=>{if(team===official[index]){points+=FF_POINTS[index];hits.push(`${FF_LABELS[index]} correct (+${FF_POINTS[index]})`);}});return {points,scored:true,reason:hits.join(' · ')||'No exact positions'};}
+
+  document.querySelectorAll('.tab').forEach(tab=>tab.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));tab.classList.add('active');qs(tab.dataset.target).classList.add('active');}));
+  const applyAdminLock=()=>{const open=sessionStorage.getItem('wc-admin')==='1';qs('adminGate').classList.toggle('hidden',open);qs('adminContent').classList.toggle('hidden',!open);};
+  function unlockAdmin(){if(qs('adminPass').value==='pass'){sessionStorage.setItem('wc-admin','1');qs('adminPass').value='';qs('adminMsg').textContent='';applyAdminLock();}else qs('adminMsg').textContent='Incorrect passcode.';}
+  qs('adminUnlock').addEventListener('click',unlockAdmin);qs('adminPass').addEventListener('keydown',event=>{if(event.key==='Enter')unlockAdmin();});applyAdminLock();
+
+  function updateWinner(card){const match=db.matches.find(item=>item.id===card.dataset.matchId),s1=card.querySelector('.pred-score1').value,s2=card.querySelector('.pred-score2').value,zone=card.querySelector('.winner-zone'),hidden=card.querySelector('.pred-winner'),disabled=card.classList.contains('locked');if(s1===''||s2===''){hidden.value='';zone.innerHTML='<div class="note">Enter both scores.</div>';updateMatchSave();return;}if(+s1!==+s2){hidden.value=+s1>+s2?match.team1:match.team2;zone.innerHTML=`<div class="winner-auto">Winner: <strong>${esc(hidden.value)}</strong></div>`;updateMatchSave();return;}if(![match.team1,match.team2].includes(hidden.value))hidden.value='';zone.innerHTML=`<div class="note">Draw in 90 — who wins overall?</div><div class="seg"><button type="button" data-team="${esc(match.team1)}" class="${hidden.value===match.team1?'sel':''}" ${disabled?'disabled':''}>${esc(match.team1)}</button><button type="button" data-team="${esc(match.team2)}" class="${hidden.value===match.team2?'sel':''}" ${disabled?'disabled':''}>${esc(match.team2)}</button></div>`;zone.querySelectorAll('button').forEach(button=>button.addEventListener('click',()=>{zone.querySelectorAll('button').forEach(x=>x.classList.remove('sel'));button.classList.add('sel');hidden.value=button.dataset.team;updateMatchSave();}));updateMatchSave();}
+  function updateGoalTimes(card){const zone=card.querySelector('.goal-time-zone');if(!zone)return;const match=db.matches.find(item=>item.id===card.dataset.matchId),s1=card.querySelector('.pred-score1').value,s2=card.querySelector('.pred-score2').value,hidden=card.querySelector('.pred-goaltimes');if(s1===''||s2===''){zone.innerHTML='<div class="note">Enter scores to set goal timing.</div>';return;}const current=zone.querySelector('.gt-select')?readGT(zone):(parseGT(hidden.value)||{}),clamp=value=>Math.max(0,Math.min(20,parseInt(value,10)||0));zone.innerHTML=gtHtml(match.team1,match.team2,clamp(s1),clamp(s2),current,card.classList.contains('locked'));hidden.value=JSON.stringify(readGT(zone));zone.querySelectorAll('.gt-select').forEach(select=>select.addEventListener('change',()=>hidden.value=JSON.stringify(readGT(zone))));}
+  function tally(match){const predictions=db.predictions.filter(pred=>pred.matchId===match.id&&pred.winner);if(!predictions.length)return 'No predictions yet.';return [match.team1,match.team2].map(team=>{const names=predictions.filter(pred=>pred.winner===team).map(pred=>nameOf(pred.playerId));return names.length?`<div><strong>${esc(team)}:</strong> ${esc(names.join(', '))}</div>`:'';}).join('');}
+  const submittedDay=(player,date)=>db.predictions.some(pred=>pred.playerId===player&&db.matches.some(match=>match.id===pred.matchId&&match.date===date));
+
+  function renderPredictionCards(){const player=qs('predPlayer').value,date=qs('predDate').value,box=qs('predictionCards');if(!player||!date){box.innerHTML=`<div class="card"><div class="empty">${player?'No open match day.':'Select your name to start.'}</div></div>`;return;}const matches=db.matches.filter(match=>match.date===date);box.innerHTML=matches.map(match=>{const existing=db.predictions.find(pred=>pred.playerId===player&&pred.matchId===match.id)||{},isLocked=locked(match),gt=existing.goalTimes?JSON.stringify(parseGT(existing.goalTimes)):'';return `<div class="match ${isLocked?'locked':''}" data-match-id="${match.id}"><div class="match-head"><span class="match-teams">${esc(match.team1)} vs ${esc(match.team2)}</span><span class="countdown ${isLocked?'closed':''}">${isLocked?'Closed':'Open'}</span></div><div class="score-grid"><div><div class="team-label">${esc(match.team1)}</div><input class="num pred-score1" type="number" min="0" value="${esc(existing.score1??'')}" ${isLocked?'disabled':''}></div><div class="vs">–</div><div><div class="team-label">${esc(match.team2)}</div><input class="num pred-score2" type="number" min="0" value="${esc(existing.score2??'')}" ${isLocked?'disabled':''}></div></div><div class="winner-zone"></div><input type="hidden" class="pred-winner" value="${esc(existing.winner??'')}">${timed(match)?`<div class="goal-time-zone"></div><input type="hidden" class="pred-goaltimes" value="${esc(gt)}">`:''}<div class="tally">${tally(match)}</div></div>`;}).join('');
+    if(submittedDay(player,date)&&!editing){box.querySelectorAll('input,select,button').forEach(element=>element.disabled=true);if(matches.some(match=>!locked(match))){box.insertAdjacentHTML('afterbegin','<div class="empty" style="margin-bottom:12px">Already submitted. <button class="mini-btn" id="editDay">Edit</button></div>');qs('editDay').disabled=false;qs('editDay').addEventListener('click',()=>{editing=true;renderPredict();});}}
+    box.querySelectorAll('.match').forEach(card=>{updateWinner(card);updateGoalTimes(card);card.querySelectorAll('.pred-score1,.pred-score2').forEach(input=>input.addEventListener('input',()=>{updateWinner(card);updateGoalTimes(card);}));});
   }
-  const scorePrediction = (p,r) => scoreDetail(p,r).points;
+  function updateMatchSave(){const player=qs('predPlayer').value,date=qs('predDate').value,button=qs('saveAllPredictions');if(!player||!date){button.disabled=true;button.textContent='Save my predictions';return;}if(submittedDay(player,date)&&!editing){button.disabled=true;button.textContent='Already submitted';return;}const cards=[...qs('predictionCards').querySelectorAll('.match')].filter(card=>!locked(db.matches.find(match=>match.id===card.dataset.matchId)));const complete=cards.length&&cards.every(card=>card.querySelector('.pred-score1').value!==''&&card.querySelector('.pred-score2').value!==''&&card.querySelector('.pred-winner').value);button.disabled=!complete;button.textContent=complete?(editing?'Update my predictions':'Save my predictions'):'Fill all fields to save';}
 
-  function refreshResultWinnerSelect(){
-    const m = db.matches.find(x => x.id === qs('resultMatch').value);
-    qs('actualWinner').innerHTML = '<option value="">Winner</option>' + (m ? `<option value="${escapeHtml(m.team1)}">${escapeHtml(m.team1)}</option><option value="${escapeHtml(m.team2)}">${escapeHtml(m.team2)}</option>` : '');
-    refreshResultGoalTimeField();
-  }
-  // The per-goal timing selectors are only relevant from the Quarter Final onwards,
-  // and mirror the player interface: one dropdown per goal in the entered scoreline.
-  function refreshResultGoalTimeField(){
-    const wrap = qs('resultGoalTimeWrap'); if(!wrap) return;
-    const m = db.matches.find(x => x.id === qs('resultMatch').value);
-    const timed = !!(m && hasGoalTime(m));
-    wrap.classList.toggle('hidden', !timed);
-    if(!timed) return;
-    const zone = qs('resultGoalTimeZone');
-    const s1 = qs('actual1').value, s2 = qs('actual2').value;
-    if(s1 === '' || s2 === ''){ zone.innerHTML = '<div class="gt-hint">Enter both scores to set each goal’s timing.</div>'; return; }
-    const clamp = n => Math.max(0, Math.min(20, parseInt(n,10) || 0));
-    const r = db.results.find(x => x.matchId === m.id);
-    const cur = zone.querySelector('.gt-select') ? readGoalTimes(zone) : (r ? parseGT(r.goalTimes) : null);
-    zone.innerHTML = goalTimeSelectorsHtml(m.team1, m.team2, clamp(s1), clamp(s2), cur, false);
-  }
+  function renderSubmitStatus(date){const matches=db.matches.filter(match=>match.date===date),submitted=db.players.filter(player=>submittedDay(player.id,date)),pending=db.players.filter(player=>!submittedDay(player.id,date));qs('submitStatusSub').textContent=matches.length?`${submitted.length} submitted · ${pending.length} yet to submit`:'No open match day.';qs('submitStatus').innerHTML=matches.length?`<div class="pend-day">Submitted</div><div class="pending-wrap">${submitted.map(player=>`<span class="pend-chip done">${esc(player.name)}</span>`).join('')||'<span class="note">Nobody yet.</span>'}</div><div class="pend-day">Yet to submit</div><div class="pending-wrap">${pending.map(player=>`<span class="pend-chip">${esc(player.name)}</span>`).join('')||'<span class="note">Everyone is in!</span>'}</div>`:'';}
+  function renderStanding(){const el=qs('myStanding'),player=qs('predPlayer').value;if(!player){el.classList.add('hidden');return;}const ranks=computeRanks('all'),index=ranks.findIndex(item=>item.id===player);if(index<0){el.classList.add('hidden');return;}el.textContent=`Overall position: ${index+1} of ${ranks.length} · ${ranks[index].pts} points`;el.classList.remove('hidden');}
+  function renderPredict(){const openDates=[...new Set(db.matches.filter(match=>!locked(match)).map(match=>match.date))].sort(),date=openDates[0]||'';qs('predDate').value=date;const first=db.matches.find(match=>match.date===date);qs('activeDayBar').textContent=date?`Match day: ${fmtDate(date)} · ${roundOf(first)}`:'No open match day right now.';qs('saveMsg').textContent='';renderStanding();renderPredictionCards();renderSubmitStatus(date);updateMatchSave();renderFinalFourPrediction();}
 
-  // ---- predict cards ----
-  function renderPredictionCards(){
-    const playerId = qs('predPlayer').value, date = qs('predDate').value, box = qs('predictionCards');
-    if(!playerId){ box.innerHTML = '<div class="card"><div class="empty">Select your name to start.</div></div>'; return; }
-    if(!date){ box.innerHTML = '<div class="card"><div class="empty">No open match day right now.</div></div>'; return; }
-    const matches = db.matches.filter(m => m.date === date);
-    if(!matches.length){ box.innerHTML = '<div class="card"><div class="empty">No matches on this day.</div></div>'; return; }
-    box.innerHTML = matches.map(m => {
-      const ex = db.predictions.find(p => p.playerId===playerId && p.matchId===m.id) || {};
-      const cd = entryStatus(m), locked = isLocked(m);
-      const w = ex.winner;
-      const exGT = (hasGoalTime(m) && ex.goalTimes) ? JSON.stringify(parseGT(ex.goalTimes)) : '';
-      return `<div class="match ${locked?'locked':''}" data-match-id="${m.id}">
-        <div class="match-head">
-          <span class="match-teams">${escapeHtml(m.team1)} <span style="color:#9ca3af">vs</span> ${escapeHtml(m.team2)}${ex.winner?'<span class="saved-tag">saved</span>':''}</span>
-          <span class="countdown ${cd.cls}">${cd.txt}</span>
-        </div>
-        <div class="score-grid">
-          <div><div class="team-label">${escapeHtml(m.team1)}</div><input class="num pred-score1" type="number" min="0" inputmode="numeric" value="${escapeHtml(ex.score1 ?? '')}" placeholder="0" ${locked?'disabled':''}></div>
-          <div class="vs">–</div>
-          <div><div class="team-label">${escapeHtml(m.team2)}</div><input class="num pred-score2" type="number" min="0" inputmode="numeric" value="${escapeHtml(ex.score2 ?? '')}" placeholder="0" ${locked?'disabled':''}></div>
-        </div>
-        <div class="winner-row">
-          <div class="winner-zone"></div>
-          <input type="hidden" class="pred-winner" value="${escapeHtml(w ?? '')}">
-        </div>
-        ${hasGoalTime(m) ? `<div class="gt-row">
-          <div class="goal-time-zone"></div>
-          <input type="hidden" class="pred-goaltimes" value="${escapeHtml(exGT)}">
-        </div>` : ''}
-        <div class="pred-tally">${tallyHtml(m)}</div>
-        ${locked?'<p class="note" style="margin:10px 0 0">Predictions are locked for this match.</p>':''}
-      </div>`;
-    }).join('');
-    // one submission per match day: lock if already submitted (unless editing)
-    const dayLocked = matches.length && isLocked(matches[0]);
-    if(hasSubmittedDay(playerId, date) && !editing){
-      box.querySelectorAll('input,select').forEach(el => el.setAttribute('disabled','disabled'));
-      const editBtn = (!dayLocked) ? '<div><button type="button" class="edit-btn" id="editBtn">Do you want to edit?</button></div>' : '';
-      box.insertAdjacentHTML('afterbegin', `<div class="empty" style="margin-bottom:12px">You have already submitted for this day.${dayLocked?' Predictions are now locked.':''}${editBtn}</div>`);
-      const eb = qs('editBtn');
-      if(eb) eb.addEventListener('click', () => {
-        if(confirm('Do you want to edit your predictions for this day?')){ editing = true; renderPredictTab(); }
-      });
-    }
-    // build winner UI from scores, and recompute it whenever a score changes
-    box.querySelectorAll('.match').forEach(card => {
-      updateWinnerUI(card);
-      updateGoalTimeUI(card);
-      card.querySelectorAll('.pred-score1,.pred-score2').forEach(inp => inp.addEventListener('input', () => { updateWinnerUI(card); updateGoalTimeUI(card); }));
-    });
-  }
+  function renderFinalFourPrediction(){const player=qs('predPlayer').value,pred=db.finalFourPredictions.find(item=>item.player_id===player),order=ffPredOrder(pred),isLocked=!!db.finalFourSettings.locked;[1,2,3,4].forEach((number,index)=>{const select=qs(`ffPred${number}`);select.innerHTML=ffOptions(order[index]);select.disabled=!player||isLocked;});const msg=qs('finalFourMsg');msg.className='note';msg.textContent=!player?'Select your name above.':isLocked?(pred?`Locked. Your order: ${order.join(', ')}.`:'Predictions are locked.'):(pred?'Your saved prediction is shown above.':'Use every team exactly once.');updateFFSave();}
+  function updateFFSave(){const button=qs('saveFinalFour'),player=qs('predPlayer').value,order=[1,2,3,4].map(n=>qs(`ffPred${n}`).value),isLocked=!!db.finalFourSettings.locked,existing=db.finalFourPredictions.some(item=>item.player_id===player);button.disabled=!player||isLocked||!validFF(order);button.textContent=isLocked?'Final Four predictions locked':!player?'Select your name first':!validFF(order)?'Complete all four positions':existing?'Update Final Four prediction':'Save Final Four prediction';}
+  async function saveFinalFour(){const player=qs('predPlayer').value,order=[1,2,3,4].map(n=>qs(`ffPred${n}`).value);if(!player||db.finalFourSettings.locked||!validFF(order))return alert('Select your name and use each team exactly once.');const existing=db.finalFourPredictions.find(item=>item.player_id===player),payload={id:existing?.id||uid('ff'),player_id:player,first_team:order[0],second_team:order[1],third_team:order[2],fourth_team:order[3]};if(offline){const index=db.finalFourPredictions.findIndex(item=>item.player_id===player);index>=0?db.finalFourPredictions[index]=payload:db.finalFourPredictions.push(payload);renderAll();qs('predPlayer').value=player;renderPredict();}else{const {error}=await client.from('final_four_predictions').upsert([payload],{onConflict:'player_id'});if(error)return alert(error.message);await loadData();qs('predPlayer').value=player;renderPredict();}qs('finalFourMsg').className='note success';qs('finalFourMsg').textContent='Final Four prediction saved.';}
 
-  // Winner is derived from the score. Only a draw (equal scores) needs a manual pick.
-  function updateWinnerUI(card){
-    const m = db.matches.find(x => x.id === card.getAttribute('data-match-id'));
-    if(!m) return;
-    const s1 = card.querySelector('.pred-score1').value;
-    const s2 = card.querySelector('.pred-score2').value;
-    const zone = card.querySelector('.winner-zone');
-    const hidden = card.querySelector('.pred-winner');
-    const disabled = card.querySelector('.pred-score1').hasAttribute('disabled');
-    if(s1==='' || s2===''){
-      zone.innerHTML = '<div class="winner-hint">Enter both scores to set the winner.</div>';
-      updateSaveState(); return;
-    }
-    if(Number(s1) !== Number(s2)){
-      const w = Number(s1) > Number(s2) ? m.team1 : m.team2;
-      hidden.value = w;
-      zone.innerHTML = `<div class="winner-auto">Winner: <strong>${escapeHtml(w)}</strong><span class="auto-tag">auto from score</span></div>`;
-      updateSaveState(); return;
-    }
-    // draw in 90 -> player must pick who wins overall
-    const cur = (hidden.value===m.team1 || hidden.value===m.team2) ? hidden.value : '';
-    hidden.value = cur;
-    zone.innerHTML = `<div class="winner-hint">Draw in 90 — who wins overall?</div><div class="seg">`+
-      `<button type="button" class="pick-winner ${cur===m.team1?'sel':''}" data-team="${escapeHtml(m.team1)}" ${disabled?'disabled':''}>${escapeHtml(m.team1)}</button>`+
-      `<button type="button" class="pick-winner ${cur===m.team2?'sel':''}" data-team="${escapeHtml(m.team2)}" ${disabled?'disabled':''}>${escapeHtml(m.team2)}</button></div>`;
-    zone.querySelectorAll('.pick-winner').forEach(b => b.addEventListener('click', () => {
-      if(b.hasAttribute('disabled')) return;
-      zone.querySelectorAll('.pick-winner').forEach(x => x.classList.remove('sel'));
-      b.classList.add('sel');
-      hidden.value = b.getAttribute('data-team');
-      updateSaveState();
-    }));
-    updateSaveState();
-  }
+  function computeRanks(round){const map={};db.players.forEach(player=>map[player.id]={id:player.id,name:player.name,pts:0,played:0,ffScored:false,detail:[]});if(round!=='Final Four')db.predictions.forEach(pred=>{const match=db.matches.find(item=>item.id===pred.matchId);if(!match||(round!=='all'&&roundOf(match)!==round))return;const result=db.results.find(item=>item.matchId===pred.matchId),score=scoreDetail(pred,result),player=map[pred.playerId];if(!player)return;player.pts+=score.points;if(result)player.played++;player.detail.push({date:match.date,title:`${match.team1} vs ${match.team2}`,prediction:`${pred.score1}-${pred.score2} (${pred.winner})`,points:score.points,reason:score.reason,scored:!!result});});if(round==='all'||round==='Final Four')db.finalFourPredictions.forEach(pred=>{const player=map[pred.player_id];if(!player)return;const score=ffScore(pred);player.pts+=score.points;player.ffScored=score.scored;player.detail.push({date:'9999-12-31',title:'Final Four positions',prediction:ffPredOrder(pred).map((team,index)=>`${FF_LABELS[index]} ${team}`).join(' · '),points:score.points,reason:score.reason,scored:score.scored});});return Object.values(map).sort((a,b)=>b.pts-a.pts||a.name.localeCompare(b.name));}
+  function renderLeaderboard(){const rounds=ROUNDS.filter(round=>db.matches.some(match=>roundOf(match)===round)),hasFF=db.finalFourPredictions.length||validFF(ffOfficialOrder()),tabs=['all',...rounds,...(hasFF?['Final Four']:[])];if(!tabs.includes(leaderRound))leaderRound='all';qs('roundTabs').innerHTML=tabs.map(round=>`<button class="subtab ${leaderRound===round?'active':''}" data-round="${round}">${round==='all'?'Overall':round}</button>`).join('');qs('roundTabs').querySelectorAll('button').forEach(button=>button.addEventListener('click',()=>{leaderRound=button.dataset.round;renderLeaderboard();}));const ranks=computeRanks(leaderRound);qs('leaderboard').innerHTML=ranks.map((player,index)=>`<div class="lead-card"><div class="lead-item"><div class="rank ${index===0?'g1':index===1?'g2':index===2?'g3':''}">${index+1}</div><div class="lead-name">${esc(player.name)}<div class="lead-sub">${player.played} match${player.played===1?'':'es'} scored${player.ffScored?' · Final Four scored':''}</div></div><div class="lead-pts">${player.pts}<span style="font-size:12px"> pts</span></div></div><div class="lead-body">${player.detail.length?player.detail.sort((a,b)=>a.date.localeCompare(b.date)).map(item=>`<div class="bd-row"><div><div>${esc(item.title)}</div><div class="bd-reason">${esc(item.prediction)} · ${esc(item.scored?item.reason:'not scored yet')}</div></div><span class="chip">${item.scored?item.points+' pts':'—'}</span></div>`).join(''):'<div class="bd-row">No predictions yet.</div>'}</div></div>`).join('');qs('leaderboard').querySelectorAll('.lead-item').forEach(item=>item.addEventListener('click',()=>item.parentElement.classList.toggle('open')));}
+  function renderPending(){const matches=db.matches.filter(match=>!locked(match));if(!matches.length){qs('pending').innerHTML='<div class="empty">No open matches.</div>';return;}const dates=[...new Set(matches.map(match=>match.date))].sort();qs('pending').innerHTML=dates.map(date=>{const day=matches.filter(match=>match.date===date);return `<div class="pend-day">${fmtDate(date)}</div><div class="pending-wrap">${db.players.map(player=>{const done=day.every(match=>db.predictions.some(pred=>pred.playerId===player.id&&pred.matchId===match.id));return `<span class="pend-chip ${done?'done':''}">${esc(player.name)}</span>`;}).join('')}</div>`;}).join('');}
+  function renderInsights(){const matches=[...db.matches].sort((a,b)=>(a.date||'').localeCompare(b.date||''));qs('insights').innerHTML=matches.length?matches.map(match=>{const result=db.results.find(item=>item.matchId===match.id),predictions=db.predictions.filter(pred=>pred.matchId===match.id);return `<div class="match"><div class="match-head"><span class="match-teams">${esc(match.team1)} vs ${esc(match.team2)}</span><span class="pill">${result?`${result.score1}-${result.score2}`:'Pending'}</span></div>${predictions.length?predictions.map(pred=>{const score=scoreDetail(pred,result);return `<div class="bd-row"><span>${esc(nameOf(pred.playerId))}: ${esc(pred.score1)}-${esc(pred.score2)} (${esc(pred.winner)})</span><span class="chip">${result?score.points+' pts':'—'}</span></div>`;}).join(''):'<p class="note">No predictions.</p>'}</div>`;}).join(''):'<div class="empty">No matches yet.</div>';}
 
-  // ---- goal-timing helpers (Quarter Final onwards) ----
-  // Stored per prediction/result as {"1":[periods…],"2":[periods…]} keyed by team slot
-  // (slot 1 = match.team1, slot 2 = match.team2); one entry per goal in the scoreline.
-  function parseGT(v){
-    if(!v) return null;
-    let o = v;
-    if(typeof v === 'string'){ try{ o = JSON.parse(v); }catch{ return null; } }
-    if(!o || typeof o !== 'object') return null;
-    const arr = x => Array.isArray(x) ? x.map(y => y || '') : [];
-    return {1: arr(o['1'] ?? o[1]), 2: arr(o['2'] ?? o[2])};
-  }
-  function gtSelectRow(slot, idx, teamName, val, disabled){
-    const opts = GT_OPTS.map(([v,l]) => `<option value="${v}" ${val===v?'selected':''}>${escapeHtml(l)}</option>`).join('');
-    return `<label class="gt-goal"><span>${escapeHtml(teamName)} · goal ${idx+1}</span><select class="gt-select" data-slot="${slot}" ${disabled?'disabled':''}>${opts}</select></label>`;
-  }
-  function goalTimeSelectorsHtml(t1, t2, n1, n2, cur, disabled){
-    cur = cur || {1:[],2:[]};
-    let rows = '';
-    for(let i=0;i<n1;i++) rows += gtSelectRow('1', i, t1, (cur[1]||[])[i] || '', disabled);
-    for(let i=0;i<n2;i++) rows += gtSelectRow('2', i, t2, (cur[2]||[])[i] || '', disabled);
-    if(!rows) return '<div class="gt-hint">No goals in this scoreline — no timings to set.</div>';
-    return '<div class="gt-hint">When is each goal scored? (+3 each if correct)</div><div class="gt-goals">' + rows + '</div>';
-  }
-  function readGoalTimes(container){
-    const out = {1:[], 2:[]};
-    container.querySelectorAll('.gt-select').forEach(s => { out[s.getAttribute('data-slot')].push(s.value || ''); });
-    return out;
-  }
-  // +3 for each goal whose predicted period matches an actual goal's period for the same team.
-  function goalTimePoints(pred, result){
-    if(!result) return 0;
-    const rg = parseGT(result.goalTimes); if(!rg) return 0;
-    const pg = parseGT(pred && pred.goalTimes); if(!pg) return 0;
-    let pts = 0;
-    for(const slot of [1,2]){
-      const need = {}; (rg[slot]||[]).forEach(x => { if(x) need[x] = (need[x]||0)+1; });
-      (pg[slot]||[]).forEach(x => { if(x && need[x] > 0){ pts += 3; need[x]--; } });
-    }
-    return pts;
-  }
-  // Compact "1st, 2nd" list across both teams (for chips/tables).
-  function gtFlat(v){
-    const g = parseGT(v); if(!g) return '';
-    return [...(g[1]||[]), ...(g[2]||[])].filter(Boolean).map(x => GT_LABEL[x] || x).join(', ');
-  }
-  // "Team A: 1st, 2nd · Team B: 2nd" (for the results table).
-  function gtSummary(v, t1, t2){
-    const g = parseGT(v); if(!g) return '';
-    const fmtArr = a => (a||[]).filter(Boolean).map(x => GT_LABEL[x] || x).join(', ');
-    const p1 = fmtArr(g[1]), p2 = fmtArr(g[2]), parts = [];
-    if(p1) parts.push(escapeHtml(t1) + ': ' + escapeHtml(p1));
-    if(p2) parts.push(escapeHtml(t2) + ': ' + escapeHtml(p2));
-    return parts.join(' · ');
-  }
-  // Per-goal timing dropdowns for a prediction card, rebuilt from the entered scoreline.
-  function updateGoalTimeUI(card){
-    const zone = card.querySelector('.goal-time-zone');
-    if(!zone) return; // not a timed (QF+) match
-    const hidden = card.querySelector('.pred-goaltimes');
-    const m = db.matches.find(x => x.id === card.getAttribute('data-match-id'));
-    const s1 = card.querySelector('.pred-score1').value;
-    const s2 = card.querySelector('.pred-score2').value;
-    const disabled = card.querySelector('.pred-score1').hasAttribute('disabled');
-    if(s1 === '' || s2 === ''){ zone.innerHTML = '<div class="gt-hint">Enter both scores to set each goal’s timing.</div>'; return; }
-    const clamp = n => Math.max(0, Math.min(20, parseInt(n,10) || 0));
-    const cur = zone.querySelector('.gt-select') ? readGoalTimes(zone) : parseGT(hidden.value);
-    zone.innerHTML = goalTimeSelectorsHtml(m.team1, m.team2, clamp(s1), clamp(s2), cur, disabled);
-    hidden.value = JSON.stringify(readGoalTimes(zone));
-    zone.querySelectorAll('.gt-select').forEach(s => s.addEventListener('change', () => { hidden.value = JSON.stringify(readGoalTimes(zone)); }));
-  }
+  function renderAdmin(){const selectedResult=qs('resultMatch').value,matchOptions='<option value="">Select match</option>'+db.matches.map(match=>`<option value="${match.id}">${esc(match.date)}: ${esc(match.team1)} vs ${esc(match.team2)}</option>`).join('');qs('resultMatch').innerHTML=matchOptions;if(db.matches.some(match=>match.id===selectedResult))qs('resultMatch').value=selectedResult;qs('matchRound').innerHTML=ADD_ROUNDS.map(round=>`<option value="${round}">${round}</option>`).join('');qs('matchesBody').innerHTML=db.matches.length?db.matches.map(match=>`<tr><td>${fmtDate(match.date)}</td><td>${esc(match.team1)} vs ${esc(match.team2)}</td><td><span class="pill">${locked(match)?'Closed':'Open'}</span> <button class="mini-btn ${locked(match)?'':'danger'}" data-lock="${match.id}">${locked(match)?'Open':'Close'}</button></td><td>${db.results.some(result=>result.matchId===match.id)?'Scored':'Pending'}</td></tr>`).join(''):'<tr><td colspan="4">No matches.</td></tr>';qs('resultsBody').innerHTML=db.results.length?db.results.map(result=>{const match=db.matches.find(item=>item.id===result.matchId);return match?`<tr><td>${esc(match.team1)} vs ${esc(match.team2)}</td><td>${result.score1}-${result.score2}</td><td>${esc(result.winner)}</td></tr>`:'';}).join(''):'<tr><td colspan="3">No results.</td></tr>';refreshResultForm();renderEntries();renderFinalFourAdmin();}
+  function refreshResultForm(){const match=db.matches.find(item=>item.id===qs('resultMatch').value),currentWinner=qs('actualWinner').value;qs('actualWinner').innerHTML='<option value="">Winner</option>'+(match?`<option value="${esc(match.team1)}">${esc(match.team1)}</option><option value="${esc(match.team2)}">${esc(match.team2)}</option>`:'');if(match&&[match.team1,match.team2].includes(currentWinner))qs('actualWinner').value=currentWinner;refreshResultGT();}
+  function refreshResultGT(){const match=db.matches.find(item=>item.id===qs('resultMatch').value),wrap=qs('resultGoalTimeWrap');wrap.classList.toggle('hidden',!match||!timed(match));if(!match||!timed(match))return;const s1=qs('actual1').value,s2=qs('actual2').value,zone=qs('resultGoalTimeZone');if(s1===''||s2===''){zone.innerHTML='<p class="note">Enter scores to set goal timing.</p>';return;}const result=db.results.find(item=>item.matchId===match.id),current=zone.querySelector('.gt-select')?readGT(zone):(parseGT(result?.goalTimes)||{});zone.innerHTML=gtHtml(match.team1,match.team2,Math.min(20,+s1||0),Math.min(20,+s2||0),current);}
+  function renderEntries(){const pf=qs('entryPlayerFilter'),mf=qs('entryMatchFilter'),playerValue=pf.value,matchValue=mf.value;pf.innerHTML='<option value="">All players</option>'+db.players.map(player=>`<option value="${player.id}">${esc(player.name)}</option>`).join('');mf.innerHTML='<option value="">All matches</option>'+db.matches.map(match=>`<option value="${match.id}">${esc(match.team1)} vs ${esc(match.team2)}</option>`).join('');pf.value=playerValue;mf.value=matchValue;let predictions=[...db.predictions];if(playerValue)predictions=predictions.filter(pred=>pred.playerId===playerValue);if(matchValue)predictions=predictions.filter(pred=>pred.matchId===matchValue);qs('entriesBody').innerHTML=predictions.length?predictions.map(pred=>{const match=db.matches.find(item=>item.id===pred.matchId);return `<tr><td>${esc(nameOf(pred.playerId))}</td><td>${match?`${esc(match.team1)} vs ${esc(match.team2)}`:'Deleted match'}</td><td>${pred.score1}-${pred.score2} (${esc(pred.winner)})</td><td><button class="mini-btn danger" data-delete-pred="${pred.id}">Delete</button></td></tr>`;}).join(''):'<tr><td colspan="4">No entries.</td></tr>';}
+  function renderFinalFourAdmin(){const official=ffOfficialOrder();[1,2,3,4].forEach((number,index)=>qs(`ffOfficial${number}`).innerHTML=ffOptions(official[index]));const isLocked=!!db.finalFourSettings.locked;qs('finalFourLockStatus').textContent=isLocked?'Predictions locked':'Predictions open';qs('toggleFinalFourLock').textContent=isLocked?'Reopen predictions':'Lock predictions';qs('toggleFinalFourLock').className=isLocked?'mini-btn':'mini-btn danger';qs('finalFourEntriesBody').innerHTML=db.finalFourPredictions.length?db.finalFourPredictions.map(pred=>{const score=ffScore(pred);return `<tr><td>${esc(nameOf(pred.player_id))}</td><td>${esc(ffPredOrder(pred).join(' · '))}</td><td>${score.scored?score.points:'—'}</td><td><button class="mini-btn" data-ff-edit="${pred.id}">Edit</button> <button class="mini-btn danger" data-ff-delete="${pred.id}">Delete</button></td></tr>`;}).join(''):'<tr><td colspan="4">No Final Four predictions.</td></tr>';}
 
-  // Who predicted whom for a match
-  function tallyHtml(m){
-    const nameOf = id => (db.players.find(x=>x.id===id)||{}).name || id;
-    const preds = db.predictions.filter(p => p.matchId===m.id && p.winner);
-    if(!preds.length) return '<div class="tally-line tally-empty">No predictions yet.</div>';
-    const g1 = preds.filter(p=>p.winner===m.team1).map(p=>nameOf(p.playerId));
-    const g2 = preds.filter(p=>p.winner===m.team2).map(p=>nameOf(p.playerId));
-    let out='';
-    if(g1.length) out += `<div class="tally-line"><span class="tally-team">${escapeHtml(m.team1)}:</span>${escapeHtml(g1.join(', '))}</div>`;
-    if(g2.length) out += `<div class="tally-line"><span class="tally-team">${escapeHtml(m.team2)}:</span>${escapeHtml(g2.join(', '))}</div>`;
-    return out || '<div class="tally-line tally-empty">No predictions yet.</div>';
-  }
+  async function toggleMatch(id){const match=db.matches.find(item=>item.id===id);if(!match)return;const value=!locked(match);if(offline){match.locked=value;renderAll();return;}const {error}=await client.from('matches').update({locked:value}).eq('id',id);if(error)return alert(error.message);await loadData();}
+  async function deletePrediction(id){if(!confirm('Delete this prediction?'))return;if(offline){db.predictions=db.predictions.filter(pred=>pred.id!==id);renderAll();return;}const {error}=await client.from('predictions').delete().eq('id',id);if(error)return alert(error.message);await loadData();}
+  async function toggleFFLock(){const value=!db.finalFourSettings.locked;if(value&&!confirm('Lock Final Four predictions?'))return;const payload={...db.finalFourSettings,id:'main',locked:value};if(offline){db.finalFourSettings=payload;renderAll();return;}const {error}=await client.from('final_four_settings').upsert([payload]);if(error)return alert(error.message);await loadData();}
+  async function saveFFResult(){const order=[1,2,3,4].map(n=>qs(`ffOfficial${n}`).value);if(!validFF(order))return alert('Use each team exactly once.');const payload={id:'main',locked:!!db.finalFourSettings.locked,official_first:order[0],official_second:order[1],official_third:order[2],official_fourth:order[3]};if(offline){db.finalFourSettings=payload;renderAll();}else{const {error}=await client.from('final_four_settings').upsert([payload]);if(error)return alert(error.message);await loadData();}qs('finalFourAdminMsg').className='note success';qs('finalFourAdminMsg').textContent='Official positions saved. Leaderboard recalculated.';}
+  function normalizeTeam(value){const text=String(value||'').trim().toLowerCase();return FF_TEAMS.find(team=>team.toLowerCase()===text)||'';}
+  async function editFF(id){const pred=db.finalFourPredictions.find(item=>item.id===id);if(!pred)return;const current=ffPredOrder(pred),order=[];for(let index=0;index<4;index++){const value=prompt(`${FF_LABELS[index]} place:`,current[index]);if(value===null)return;order.push(normalizeTeam(value));}if(!validFF(order))return alert('Use France, Spain, Argentina and England exactly once.');const payload={id:pred.id,player_id:pred.player_id,first_team:order[0],second_team:order[1],third_team:order[2],fourth_team:order[3]};if(offline){db.finalFourPredictions[db.finalFourPredictions.findIndex(item=>item.id===id)]=payload;renderAll();return;}const {error}=await client.from('final_four_predictions').upsert([payload]);if(error)return alert(error.message);await loadData();}
+  async function deleteFF(id){if(!confirm('Delete this Final Four prediction?'))return;if(offline){db.finalFourPredictions=db.finalFourPredictions.filter(item=>item.id!==id);renderAll();return;}const {error}=await client.from('final_four_predictions').delete().eq('id',id);if(error)return alert(error.message);await loadData();}
 
-  // a player has "submitted" a day if they have any prediction for a match on that date
-  const hasSubmittedDay = (playerId, date) => db.predictions.some(p => p.playerId===playerId && db.matches.some(m => m.id===p.matchId && m.date===date));
+  function renderAll(){const selectedPlayer=qs('predPlayer').value;qs('predPlayer').innerHTML='<option value="">Select your name</option>'+db.players.map(player=>`<option value="${player.id}">${esc(player.name)}</option>`).join('');if(db.players.some(player=>player.id===selectedPlayer))qs('predPlayer').value=selectedPlayer;renderLeaderboard();renderPending();renderInsights();renderAdmin();renderPredict();}
 
-  function updateSaveState(){
-    const btn = qs('saveAllPredictions');
-    if(!btn) return;
-    const playerId = qs('predPlayer').value, date = qs('predDate').value;
-    if(!playerId || !date){ btn.disabled = true; btn.textContent = 'Save my predictions'; return; }
-    if(hasSubmittedDay(playerId, date) && !editing){ btn.disabled = true; btn.textContent = 'Already submitted'; return; }
-    const cards = Array.from(document.querySelectorAll('#predictionCards .match'));
-    const editable = cards.filter(c => { const m = db.matches.find(x => x.id===c.getAttribute('data-match-id')); return !isLocked(m); });
-    if(!editable.length){ btn.disabled = true; btn.textContent = 'No open matches'; return; }
-    const allFilled = editable.every(c => c.querySelector('.pred-score1').value !== '' && c.querySelector('.pred-score2').value !== '' && c.querySelector('.pred-winner').value !== '');
-    btn.disabled = !allFilled;
-    btn.textContent = !allFilled ? 'Fill all fields to save' : (editing ? 'Update my predictions' : 'Save my predictions');
-  }
+  async function loadData(){if(!cfg.url||!cfg.key){offline=true;setStatus('Offline mode',false);renderAll();return;}try{if(!window.supabase)throw new Error('Supabase library did not load');client=window.supabase.createClient(cfg.url,cfg.key);setStatus('Loading…',true);const [matches,predictions,results,ffPredictions,ffSettings]=await Promise.all([client.from('matches').select('*').order('date'),client.from('predictions').select('*'),client.from('results').select('*'),client.from('final_four_predictions').select('*'),client.from('final_four_settings').select('*').eq('id','main').maybeSingle()]);for(const response of [matches,predictions,results,ffPredictions,ffSettings])if(response.error)throw response.error;db.matches=matches.data||[];db.predictions=predictions.data||[];db.results=results.data||[];db.finalFourPredictions=ffPredictions.data||[];db.finalFourSettings=ffSettings.data||{...DEFAULT_FF};offline=false;setStatus('Connected',true);}catch(error){offline=true;setStatus(`DB error: ${error.message}`,false);}renderAll();}
 
-  // bottom-of-page submitted / yet-to-submit lists for the selected day
-  function renderSubmitStatus(date){
-    const wrap = qs('submitStatus'), sub = qs('submitStatusSub');
-    if(!wrap) return;
-    if(!date){ sub.textContent = 'Select a match day to see who has submitted.'; wrap.innerHTML = ''; return; }
-    const dayMatches = db.matches.filter(m => m.date===date);
-    if(!dayMatches.length){ sub.textContent = 'No matches on this day.'; wrap.innerHTML = ''; return; }
-    const submitted = db.players.filter(pl => hasSubmittedDay(pl.id, date));
-    const pending = db.players.filter(pl => !hasSubmittedDay(pl.id, date));
-    sub.textContent = `${submitted.length} submitted · ${pending.length} yet to submit`;
-    wrap.innerHTML =
-      `<div class="pend-day">Submitted (${submitted.length})</div>` +
-      `<div class="pending-wrap">${submitted.map(p=>`<span class="pend-chip done">${escapeHtml(p.name)}</span>`).join('') || '<span class="note">Nobody yet.</span>'}</div>` +
-      `<div class="pend-day">Yet to submit (${pending.length})</div>` +
-      `<div class="pending-wrap">${pending.map(p=>`<span class="pend-chip">${escapeHtml(p.name)}</span>`).join('') || '<span class="note">Everyone is in!</span>'}</div>`;
-  }
-
-  function renderPredictTab(){
-    const openDays = [...new Set(db.matches.filter(m=>!isLocked(m)).map(m=>m.date))].sort();
-    const dueDay = openDays[0] || '';
-    qs('predDate').value = dueDay;
-    const dueMatches = db.matches.filter(m=>m.date===dueDay);
-    const roundLabel = dueMatches.length ? (' · ' + roundOf(dueMatches[0])) : '';
-    const bar = qs('activeDayBar'); if(bar) bar.textContent = dueDay ? ('Match day: ' + fmtDate(dueDay) + roundLabel) : 'No open match day right now.';
-    renderStanding();
-    const msg = qs('saveMsg'); if(msg){ msg.className='note'; msg.textContent=''; }
-    renderPredictionCards();
-    renderSubmitStatus(dueDay);
-    updateSaveState();
-  }
-
-  // Personal standing shown when a player picks their name
-  // the round currently in play: the due day's round, else the latest round with matches
-  function currentRound(){
-    const openDays = [...new Set(db.matches.filter(m=>!isLocked(m)).map(m=>m.date))].sort();
-    const dueDay = openDays[0];
-    if(dueDay){ const dm = db.matches.filter(m=>m.date===dueDay); if(dm.length) return roundOf(dm[0]); }
-    const present = ROUNDS.filter(rn => db.matches.some(m=>roundOf(m)===rn));
-    return present.length ? present[present.length-1] : null;
-  }
-  function renderStanding(){
-    const el = qs('myStanding'); if(!el) return;
-    const pid = qs('predPlayer').value;
-    if(!pid){ el.classList.add('hidden'); return; }
-    const round = currentRound();
-    if(!round){ el.classList.add('hidden'); return; }
-    const ranks = computeRanks(round);
-    const idx = ranks.findIndex(r => r.id === pid);
-    if(idx < 0){ el.classList.add('hidden'); return; }
-    const top = ranks.length ? ranks[0].pts : 0;
-    const me = ranks[idx];
-    let txt;
-    if(top === 0){ txt = `${round} standings appear once results are in.`; }
-    else if(idx < 4){ txt = `You are ${ordinal(idx+1)} in ${round}.`; }
-    else { const gap = top - me.pts; txt = `You are ${gap} point${gap===1?'':'s'} from the top in ${round}!`; }
-    el.textContent = txt;
-    el.classList.remove('hidden');
-  }
-
-  function renderAll(){
-    const matchOpts = '<option value="">Select match</option>' + db.matches.map(m=>`<option value="${m.id}">${escapeHtml(m.date)}: ${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</option>`).join('');
-    qs('resultMatch').innerHTML = matchOpts;
-    qs('predPlayer').innerHTML = '<option value="">Select your name</option>' + db.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
-    const rv = qs('matchRound').value;
-    qs('matchRound').innerHTML = ADD_ROUNDS.map(r=>`<option value="${r}" ${r===rv?'selected':''}>${r}</option>`).join('');
-    if(!rv) qs('matchRound').value = 'Round of 16';
-    refreshResultWinnerSelect();
-
-    qs('matchesBody').innerHTML = db.matches.length ? db.matches.map(m=>{
-      const locked = isLocked(m);
-      const es = entryStatus(m);
-      const btn = `<button class="mini-btn ${locked?'':'danger'}" data-act="toggle-lock" data-id="${escapeHtml(m.id)}">${locked?'Open entries':'Close entries'}</button>`;
-      const entriesCell = `<span class="pill" style="${locked?'background:#eef1f4;color:var(--muted);border-color:var(--line)':''}">${es.txt}</span> ${btn}`;
-      const resultCell = db.results.find(r=>r.matchId===m.id)?'Scored':'Pending';
-      return `<tr><td>${escapeHtml(fmtDate(m.date))}</td><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td style="white-space:nowrap">${entriesCell}</td><td>${resultCell}</td></tr>`;
-    }).join('') : '<tr><td colspan="4">No matches yet.</td></tr>';
-    qs('resultsBody').innerHTML = db.results.length ? db.results.map(r=>{const m=db.matches.find(x=>x.id===r.matchId);return m?`<tr><td>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</td><td>${r.score1}-${r.score2}</td><td>${escapeHtml(r.winner)}${gtSummary(r.goalTimes,m.team1,m.team2)?(' · '+gtSummary(r.goalTimes,m.team1,m.team2)):''}</td></tr>`:'';}).join('') : '<tr><td colspan="3">No results yet.</td></tr>';
-
-    renderLeaderboard();
-
-    // Insights — per match, split predictors into the two team "camps"
-    const nameOf = id => (db.players.find(x=>x.id===id)||{}).name || id;
-    const personRow = (p, r) => {
-      const sd = scoreDetail(p, r);
-      const cls = sd.points>=5?'p5':sd.points>=3?'p3':sd.points>=1?'p1':'p0';
-      const pts = r ? `<span class="chip ${cls}">${sd.points}</span>` : '';
-      const gflat = gtFlat(p.goalTimes);
-      const gtag = gflat ? `<span class="gt-tag">⏱ ${escapeHtml(gflat)}</span>` : '';
-      return `<div class="camp-person"><span class="cp-name">${escapeHtml(nameOf(p.playerId))}</span><span class="cp-pred">${escapeHtml(p.score1)}-${escapeHtml(p.score2)}</span>${gtag}${pts}</div>`;
-    };
-    const sortedMatches = db.matches.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-    qs('insights').innerHTML = sortedMatches.length ? sortedMatches.map(m=>{
-      const r = db.results.find(x=>x.matchId===m.id);
-      const preds = db.predictions.filter(p=>p.matchId===m.id);
-      const g1 = preds.filter(p=>p.winner===m.team1);
-      const g2 = preds.filter(p=>p.winner===m.team2);
-      const win1 = r && r.winner===m.team1, win2 = r && r.winner===m.team2;
-      const head = r
-        ? `<span class="chip p5">${escapeHtml(r.score1)}-${escapeHtml(r.score2)} · ${escapeHtml(r.winner)}</span>`
-        : `<span class="pill">Pending</span>`;
-      const meta = `<div class="ins-meta">${escapeHtml(fmtDate(m.date))} · ${escapeHtml(roundOf(m))} · ${r?('Final: '+escapeHtml(r.score1)+'-'+escapeHtml(r.score2)+' ('+escapeHtml(r.winner)+')'):'Result not updated yet'} · ${preds.length} prediction${preds.length===1?'':'s'}</div>`;
-      const formBlock = `<div class="form-block"><div class="ins-meta" style="margin:0 0 2px">Recent form (last 4)</div>${formLine(m.team1)}${formLine(m.team2)}</div>`;
-      const camp = (team, group, isWin) => `<div class="camp ${r?(isWin?'camp-win':'camp-lose'):''}"><div class="camp-head"><span>${escapeHtml(team)}</span><span style="display:flex;gap:6px;align-items:center">${isWin?'<span class="camp-tag">Winner</span>':''}<span class="camp-count">${group.length}</span></span></div>${group.length?group.map(p=>personRow(p,r)).join(''):'<div class="camp-empty">No one</div>'}</div>`;
-      const body = `${meta}${formBlock}<div class="camps">${camp(m.team1,g1,win1)}${camp(m.team2,g2,win2)}</div>`;
-      return `<div class="bd-player"><div class="bd-head"><strong>${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</strong>${head}</div><div class="bd-body">${body}</div></div>`;
-    }).join('') : '<div class="empty">No matches yet.</div>';
-    qs('insights').querySelectorAll('.bd-head').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('open')));
-
-    renderPending();
-    renderEntries();
-    renderPredictTab();
-  }
-
-  // ---- pending predictions (open matches only) ----
-  function renderPending(){
-    const box = qs('pending');
-    if(!box) return;
-    const openMatches = db.matches.filter(m => !isLocked(m));
-    if(!openMatches.length){ box.innerHTML = '<div class="empty">No open matches right now.</div>'; return; }
-    // group by date
-    const byDate = {};
-    openMatches.forEach(m => { (byDate[m.date] = byDate[m.date] || []).push(m); });
-    const html = Object.keys(byDate).sort().map(date => {
-      const dayMatches = byDate[date];
-      const chips = db.players.map(pl => {
-        const missing = dayMatches.filter(m => !db.predictions.find(p => p.playerId===pl.id && p.matchId===m.id));
-        if(missing.length === 0){
-          return `<span class="pend-chip done">${escapeHtml(pl.name)}</span>`;
-        }
-        const label = dayMatches.length > 1 ? `${escapeHtml(pl.name)} · ${missing.length}/${dayMatches.length} left` : escapeHtml(pl.name);
-        return `<span class="pend-chip">${label}</span>`;
-      }).join('');
-      const pendingCount = db.players.filter(pl => dayMatches.some(m => !db.predictions.find(p => p.playerId===pl.id && p.matchId===m.id))).length;
-      return `<div class="pend-day">${escapeHtml(date)} · ${dayMatches.length} match${dayMatches.length===1?'':'es'} · ${pendingCount} pending</div><div class="pending-wrap">${chips}</div>`;
-    }).join('');
-    box.innerHTML = html;
-  }
-
-  // ---- admin: manage individual prediction entries ----
-  function renderEntries(){
-    const tbody = qs('entriesBody'); if(!tbody) return;
-    const pf = qs('entryPlayerFilter'), mf = qs('entryMatchFilter');
-    const pv = pf.value, mv = mf.value;
-    pf.innerHTML = '<option value="">All players</option>' + db.players.map(p=>`<option value="${p.id}" ${p.id===pv?'selected':''}>${escapeHtml(p.name)}</option>`).join('');
-    mf.innerHTML = '<option value="">All matches</option>' + db.matches.map(m=>`<option value="${m.id}" ${m.id===mv?'selected':''}>${escapeHtml(m.date)}: ${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}</option>`).join('');
-    const nameOf = id => (db.players.find(x=>x.id===id)||{}).name || id;
-    let preds = db.predictions.slice();
-    if(pv) preds = preds.filter(p=>p.playerId===pv);
-    if(mv) preds = preds.filter(p=>p.matchId===mv);
-    tbody.innerHTML = preds.length ? preds.map(p=>{
-      const m = db.matches.find(x=>x.id===p.matchId);
-      const matchLabel = m ? `${escapeHtml(m.team1)} vs ${escapeHtml(m.team2)}` : '(deleted match)';
-      return `<tr><td>${escapeHtml(nameOf(p.playerId))}</td><td>${matchLabel}</td><td>${escapeHtml(p.score1)}-${escapeHtml(p.score2)} (${escapeHtml(p.winner)})${gtFlat(p.goalTimes)?(' · ⏱ '+escapeHtml(gtFlat(p.goalTimes))):''}</td><td style="white-space:nowrap;text-align:right"><button class="mini-btn" data-act="edit" data-id="${escapeHtml(p.id)}">Edit</button><button class="mini-btn danger" data-act="del" data-id="${escapeHtml(p.id)}">Delete</button></td></tr>`;
-    }).join('') : '<tr><td colspan="4">No entries.</td></tr>';
-  }
-
-  // ---- leaderboard (per round) ----
-  function computeRanks(round){
-    const map = {}; db.players.forEach(p => map[p.id] = {id:p.id, name:p.name, pts:0, played:0, detail:[]});
-    db.predictions.forEach(p => {
-      const m = db.matches.find(x=>x.id===p.matchId);
-      if(!m) return;
-      if(round !== 'all' && roundOf(m) !== round) return;
-      const r = db.results.find(x=>x.matchId===p.matchId);
-      const sd = scoreDetail(p, r);
-      if(map[p.playerId]){
-        map[p.playerId].pts += sd.points;
-        if(r) map[p.playerId].played++;
-        map[p.playerId].detail.push({match:`${m.team1} vs ${m.team2}`, date:m.date, pred:`${p.score1}-${p.score2} (${p.winner})`, points:sd.points, reason:sd.reason, scored:!!r});
-      }
-    });
-    return Object.values(map).sort((a,b)=>b.pts-a.pts || a.name.localeCompare(b.name));
-  }
-
-  function renderLeaderboard(){
-    const tabsWrap = qs('roundTabs'); if(!tabsWrap) return;
-    const roundsPresent = ROUNDS.filter(rn => db.matches.some(m => roundOf(m)===rn));
-    if(leaderRound !== 'all' && !roundsPresent.includes(leaderRound)) leaderRound = 'all';
-    const tabRounds = ['all', ...roundsPresent];
-    tabsWrap.innerHTML = tabRounds.map(rn => `<button class="subtab ${leaderRound===rn?'active':''}" data-round="${escapeHtml(rn)}">${rn==='all'?'Overall':escapeHtml(rn)}</button>`).join('');
-    tabsWrap.querySelectorAll('.subtab').forEach(b => b.addEventListener('click', () => { leaderRound = b.getAttribute('data-round'); renderLeaderboard(); }));
-
-    const ranks = computeRanks(leaderRound);
-    qs('leaderboard').innerHTML = ranks.map((r,i)=>{
-      const g = i===0?'g1':i===1?'g2':i===2?'g3':'';
-      const rows = r.detail.length ? r.detail.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(d=>{
-        const cls = d.points>=5?'p5':d.points>=3?'p3':d.points>=1?'p1':'p0';
-        return `<div class="bd-row"><div><div>${escapeHtml(d.match)}</div><div class="bd-reason">${escapeHtml(d.pred)}${d.scored?' · '+escapeHtml(d.reason):' · not played yet'}</div></div><span class="chip ${cls}">${d.scored?d.points+' pts':'—'}</span></div>`;
-      }).join('') : '<div class="bd-row"><span class="bd-reason">No predictions yet.</span></div>';
-      const meId = qs('predPlayer') ? qs('predPlayer').value : '';
-      return `<div class="lead-card ${r.id===meId?'me':''}"><div class="lead-item" data-acc><div class="rank ${g}">${i+1}</div><div class="lead-name">${escapeHtml(r.name)}<div class="lead-sub">${r.played} match${r.played===1?'':'es'} scored · tap for breakdown</div></div><div class="lead-pts">${r.pts}<span style="font-size:12px;color:var(--muted)"> pts</span></div></div><div class="lead-body">${rows}</div></div>`;
-    }).join('') || '<div class="empty">No points yet.</div>';
-    qs('leaderboard').querySelectorAll('.lead-item[data-acc]').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('open')));
-  }
-
-  // ---- recent form (from our own recorded results) ----
-  function recentForm(team){
-    const played = db.matches.filter(mm => (mm.team1===team || mm.team2===team) && db.results.find(r=>r.matchId===mm.id));
-    played.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-    return played.slice(0,4).map(mm=>{
-      const r = db.results.find(x=>x.matchId===mm.id);
-      const isHome = mm.team1===team;
-      const gf = isHome ? r.score1 : r.score2;
-      const ga = isHome ? r.score2 : r.score1;
-      const opp = isHome ? mm.team2 : mm.team1;
-      const res = (+r.score1 === +r.score2) ? 'D' : (r.winner===team ? 'W' : 'L');
-      return {res, gf, ga, opp};
-    });
-  }
-  function formLine(team){
-    const f = recentForm(team);
-    if(!f.length) return `<div class="form-line"><span class="form-team">${escapeHtml(team)}</span><span>No recent matches on record</span></div>`;
-    const badges = f.map(x=>`<span class="frm ${x.res}" title="${x.res} ${x.gf}-${x.ga} vs ${escapeHtml(x.opp)}">${x.res}</span>`).join('');
-    return `<div class="form-line"><span class="form-team">${escapeHtml(team)}</span>${badges}</div>`;
-  }
-
-  async function toggleMatchLock(id){
-    const m = db.matches.find(x=>x.id===id); if(!m) return;
-    const newLocked = !isLocked(m);
-    if(isOffline){ m.locked = newLocked; renderAll(); return; }
-    const {error} = await supabaseClient.from('matches').update({locked:newLocked}).eq('id', id);
-    if(error) return alert(error.message);
-    await loadData();
-  }
-
-  async function deletePrediction(id){
-    const p = db.predictions.find(x=>x.id===id); if(!p) return;
-    if(!confirm('Delete this prediction entry? This cannot be undone.')) return;
-    if(isOffline){ db.predictions = db.predictions.filter(x=>x.id!==id); renderAll(); return; }
-    const {error} = await supabaseClient.from('predictions').delete().eq('id', id);
-    if(error) return alert(error.message);
-    await loadData();
-  }
-
-  async function editPrediction(id){
-    const p = db.predictions.find(x=>x.id===id); if(!p) return;
-    const m = db.matches.find(x=>x.id===p.matchId); if(!m) return alert('Match not found for this entry.');
-    const s1 = prompt(`${m.team1} score:`, p.score1); if(s1===null) return;
-    const s2 = prompt(`${m.team2} score:`, p.score2); if(s2===null) return;
-    if(s1==='' || s2==='' || isNaN(+s1) || isNaN(+s2)) return alert('Both scores must be numbers.');
-    let winner;
-    if(Number(s1) === Number(s2)){
-      winner = prompt(`Draw in 90 — who wins overall? Type exactly "${m.team1}" or "${m.team2}"`, p.winner);
-      if(winner !== m.team1 && winner !== m.team2) return alert('Winner must be '+m.team1+' or '+m.team2+'.');
-    } else {
-      winner = Number(s1) > Number(s2) ? m.team1 : m.team2;
-    }
-    const obj = {id:p.id, playerId:p.playerId, matchId:p.matchId, score1:s1, score2:s2, winner, goalTimes: p.goalTimes ?? null};
-    if(isOffline){ const i=db.predictions.findIndex(x=>x.id===id); db.predictions[i]=obj; renderAll(); return; }
-    const {error} = await supabaseClient.from('predictions').upsert([obj]);
-    if(error) return alert(error.message);
-    await loadData();
-  }
-
-  async function loadData(){
-    if(!cfg.url || !cfg.key){ isOffline=true; setStatus('Offline mode', false); renderAll(); return; }
-    try{
-      if(!window.supabase) throw new Error('Supabase not loaded');
-      supabaseClient = window.supabase.createClient(cfg.url, cfg.key);
-      setStatus('Loading…', true);
-      const [mRes,pRes,rRes] = await Promise.all([
-        supabaseClient.from('matches').select('*').order('date'),
-        supabaseClient.from('predictions').select('*'),
-        supabaseClient.from('results').select('*')
-      ]);
-      if(mRes.error) throw mRes.error; if(pRes.error) throw pRes.error; if(rRes.error) throw rRes.error;
-      db.matches=mRes.data||[]; db.predictions=pRes.data||[]; db.results=rRes.data||[];
-      isOffline=false; setStatus('Connected', true);
-    }catch(e){ setStatus('DB error: '+e.message, false); isOffline=true; }
-    renderAll();
-  }
-
-  // ---- events ----
-  qs('saveSupaBtn').addEventListener('click', () => { cfg.url=qs('supaUrlInput').value.trim(); cfg.key=qs('supaKeyInput').value.trim(); localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg)); loadData(); });
-  qs('btnReload').addEventListener('click', loadData);
-  qs('predPlayer').addEventListener('change', () => { editing = false; renderPredictTab(); });
-  qs('predDate').addEventListener('change', renderPredictTab);
-  qs('resultMatch').addEventListener('change', refreshResultWinnerSelect);
-  qs('actual1').addEventListener('input', refreshResultGoalTimeField);
-  qs('actual2').addEventListener('input', refreshResultGoalTimeField);
-  qs('matchesBody').addEventListener('click', e => {
-    const btn = e.target.closest('button[data-act="toggle-lock"]'); if(!btn) return;
-    toggleMatchLock(btn.getAttribute('data-id'));
-  });
-  qs('entryPlayerFilter').addEventListener('change', renderEntries);
-  qs('entryMatchFilter').addEventListener('change', renderEntries);
-  qs('entriesBody').addEventListener('click', e => {
-    const btn = e.target.closest('button[data-act]'); if(!btn) return;
-    const id = btn.getAttribute('data-id');
-    if(btn.getAttribute('data-act') === 'del') deletePrediction(id);
-    else if(btn.getAttribute('data-act') === 'edit') editPrediction(id);
-  });
-
-  qs('addMatch').addEventListener('click', async () => {
-    const date=qs('matchDate').value, team1=qs('team1').value.trim(), team2=qs('team2').value.trim();
-    if(!date||!team1||!team2) return alert('Fill date and both teams');
-    const obj={id:uid('match'),date,round:qs('matchRound').value||'Round of 16',team1,team2,locked:false};
-    if(isOffline){ db.matches.push(obj); qs('team1').value=''; qs('team2').value=''; renderAll(); return; }
-    const {error}=await supabaseClient.from('matches').insert([obj]); if(error) return alert(error.message); await loadData();
-  });
-
-  qs('saveResult').addEventListener('click', async () => {
-    const matchId=qs('resultMatch').value, score1=qs('actual1').value, score2=qs('actual2').value, winner=qs('actualWinner').value;
-    if(!matchId||isBlank(score1)||isBlank(score2)||!winner) return alert('Fill all result fields');
-    const rm=db.matches.find(x=>x.id===matchId), rz=qs('resultGoalTimeZone');
-    const goalTimes=(rm && hasGoalTime(rm) && rz && rz.querySelector('.gt-select')) ? readGoalTimes(rz) : null;
-    const obj={matchId,score1,score2,winner,goalTimes};
-    if(isOffline){ const i=db.results.findIndex(x=>x.matchId===matchId); i>-1?db.results[i]=obj:db.results.push(obj); renderAll(); return; }
-    const {error}=await supabaseClient.from('results').upsert([obj]); if(error) return alert(error.message); await loadData();
-  });
-
-  qs('saveAllPredictions').addEventListener('click', async () => {
-    const playerId=qs('predPlayer').value, date=qs('predDate').value;
-    if(!playerId||!date) return alert('Select your name and a match day');
-    if(hasSubmittedDay(playerId, date) && !editing) return alert('You have already submitted for this day. Only one submission is allowed per match day.');
-    const cards=Array.from(document.querySelectorAll('#predictionCards .match'));
-    if(!cards.length) return alert('No matches for this day');
-    const rows=[]; let skipped=0;
-    for(const card of cards){
-      const matchId=card.getAttribute('data-match-id');
-      const m=db.matches.find(x=>x.id===matchId);
-      if(isLocked(m)){ skipped++; continue; } // never overwrite locked matches
-      const score1=card.querySelector('.pred-score1').value;
-      const score2=card.querySelector('.pred-score2').value;
-      const winner=card.querySelector('.pred-winner').value;
-      if(isBlank(score1)||isBlank(score2)||!winner) return alert('Fill scores and winner for "'+m.team1+' vs '+m.team2+'" (or it is locked).');
-      const existing=db.predictions.find(x=>x.playerId===playerId && x.matchId===matchId);
-      const goalTimes = hasGoalTime(m) ? (parseGT(card.querySelector('.pred-goaltimes')?.value) || null) : null;
-      rows.push({id:existing?existing.id:uid('pred'),playerId,matchId,score1,score2,winner,goalTimes});
-    }
-    if(!rows.length){ qs('saveMsg').className='note'; qs('saveMsg').textContent='All matches for this day are locked — nothing to save.'; return; }
-    const wasEditing = editing; editing = false;
-    if(isOffline){
-      rows.forEach(obj=>{ const i=db.predictions.findIndex(x=>x.playerId===obj.playerId&&x.matchId===obj.matchId); i>-1?db.predictions[i]=obj:db.predictions.push(obj); });
-      renderAll(); qs('saveMsg').className='note success'; qs('saveMsg').textContent = wasEditing ? 'Predictions updated successfully.' : 'Successfully completed — your predictions are locked in.'; return;
-    }
-    const {error}=await supabaseClient.from('predictions').upsert(rows);
-    if(error){ editing = wasEditing; return alert(error.message); }
-    await loadData(); qs('saveMsg').className='note success'; qs('saveMsg').textContent = wasEditing ? 'Predictions updated successfully.' : 'Successfully completed — your predictions are locked in.';
-  });
-
-  // (entries are opened/closed manually by admin — no time-based refresh needed)
-
+  qs('saveSupaBtn').addEventListener('click',()=>{cfg.url=qs('supaUrlInput').value.trim();cfg.key=qs('supaKeyInput').value.trim();localStorage.setItem(STORAGE_KEY,JSON.stringify(cfg));loadData();});
+  qs('supaUrlInput').value=cfg.url;qs('supaKeyInput').value=cfg.key;qs('btnReload').addEventListener('click',loadData);
+  qs('predPlayer').addEventListener('change',()=>{editing=false;renderPredict();});
+  document.querySelectorAll('.ff-pred-select').forEach(select=>select.addEventListener('change',updateFFSave));
+  qs('saveFinalFour').addEventListener('click',saveFinalFour);
+  qs('saveAllPredictions').addEventListener('click',async()=>{const player=qs('predPlayer').value,date=qs('predDate').value,cards=[...qs('predictionCards').querySelectorAll('.match')],rows=[];if(!player||!date)return alert('Select your name.');for(const card of cards){const match=db.matches.find(item=>item.id===card.dataset.matchId);if(locked(match))continue;const score1=card.querySelector('.pred-score1').value,score2=card.querySelector('.pred-score2').value,winner=card.querySelector('.pred-winner').value;if(blank(score1)||blank(score2)||!winner)return alert(`Complete ${match.team1} vs ${match.team2}.`);const existing=db.predictions.find(pred=>pred.playerId===player&&pred.matchId===match.id);rows.push({id:existing?.id||uid('pred'),playerId:player,matchId:match.id,score1,score2,winner,goalTimes:timed(match)?parseGT(card.querySelector('.pred-goaltimes')?.value):null});}if(!rows.length)return alert('No open matches.');const wasEditing=editing;editing=false;if(offline){rows.forEach(row=>{const index=db.predictions.findIndex(pred=>pred.playerId===row.playerId&&pred.matchId===row.matchId);index>=0?db.predictions[index]=row:db.predictions.push(row);});renderAll();qs('predPlayer').value=player;renderPredict();}else{const {error}=await client.from('predictions').upsert(rows);if(error){editing=wasEditing;return alert(error.message);}await loadData();qs('predPlayer').value=player;renderPredict();}qs('saveMsg').className='note success';qs('saveMsg').textContent=wasEditing?'Predictions updated.':'Predictions saved.';});
+  qs('addMatch').addEventListener('click',async()=>{const date=qs('matchDate').value,team1=qs('team1').value.trim(),team2=qs('team2').value.trim();if(!date||!team1||!team2)return alert('Fill date and both teams.');const payload={id:uid('match'),date,round:qs('matchRound').value,team1,team2,locked:false};if(offline){db.matches.push(payload);renderAll();return;}const {error}=await client.from('matches').insert([payload]);if(error)return alert(error.message);await loadData();});
+  qs('matchesBody').addEventListener('click',event=>{const button=event.target.closest('[data-lock]');if(button)toggleMatch(button.dataset.lock);});
+  qs('resultMatch').addEventListener('change',refreshResultForm);qs('actual1').addEventListener('input',refreshResultGT);qs('actual2').addEventListener('input',refreshResultGT);
+  qs('saveResult').addEventListener('click',async()=>{const matchId=qs('resultMatch').value,score1=qs('actual1').value,score2=qs('actual2').value,winner=qs('actualWinner').value,match=db.matches.find(item=>item.id===matchId);if(!matchId||blank(score1)||blank(score2)||!winner)return alert('Complete all result fields.');const payload={matchId,score1,score2,winner,goalTimes:timed(match)&&qs('resultGoalTimeZone').querySelector('.gt-select')?readGT(qs('resultGoalTimeZone')):null};if(offline){const index=db.results.findIndex(result=>result.matchId===matchId);index>=0?db.results[index]=payload:db.results.push(payload);renderAll();return;}const {error}=await client.from('results').upsert([payload]);if(error)return alert(error.message);await loadData();});
+  qs('entryPlayerFilter').addEventListener('change',renderEntries);qs('entryMatchFilter').addEventListener('change',renderEntries);qs('entriesBody').addEventListener('click',event=>{const button=event.target.closest('[data-delete-pred]');if(button)deletePrediction(button.dataset.deletePred);});
+  qs('toggleFinalFourLock').addEventListener('click',toggleFFLock);qs('saveFinalFourResult').addEventListener('click',saveFFResult);qs('finalFourEntriesBody').addEventListener('click',event=>{const edit=event.target.closest('[data-ff-edit]'),del=event.target.closest('[data-ff-delete]');if(edit)editFF(edit.dataset.ffEdit);if(del)deleteFF(del.dataset.ffDelete);});
   loadData();
 });
 </script>
+</body>
+</html>
