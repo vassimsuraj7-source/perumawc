@@ -477,7 +477,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Helpers ----------
   const qs = id => document.getElementById(id);
-  const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&','<':'<','>':'>','"':'"',"'":'''}[char]));
+
+  // HTML-escape helper. Built with character codes so it cannot be corrupted.
+  const AMP = String.fromCharCode(38);
+  const esc = value => String(value ?? '')
+    .replace(/&/g, AMP + 'amp;')
+    .replace(/</g, AMP + 'lt;')
+    .replace(/>/g, AMP + 'gt;')
+    .replace(/"/g, AMP + 'quot;')
+    .replace(/'/g, AMP + '#39;');
+
   const uid = prefix => `${prefix}-${Math.random().toString(36).slice(2,10)}`;
   const blank = value => value === '' || value === null || value === undefined;
   const fmtDate = value => value ? new Date(`${value}T12:00:00`).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}) : '';
